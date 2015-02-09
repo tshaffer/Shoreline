@@ -100,7 +100,7 @@ $(document).ready(function () {
         // ** bsp.Restart("")
     }
 
-    function Restart() {
+    function tmpRestart() {
         // initialize lots of variables
 
         // if there's no presentation name,
@@ -174,9 +174,23 @@ $(document).ready(function () {
     var displayList = [];
     var displayInProgress = false;
 
+    // BSP variables
+    var currentSync = null;
+    var autoSchedule = null;
+    var activePresentation = "";
+
     // code
 
     console.log("entering bs.js");
+
+    var converter;  //xml to JSON singleton object
+
+    function XML2JSON(xml) {
+        if (!converter) {
+            converter = new X2JS();
+        }
+        return converter.xml2json(xml);
+    }
 
     function fileSystemErrorHandler(e) {
         var msg = '';
@@ -231,25 +245,28 @@ $(document).ready(function () {
         init0();
     });
 
+    init0();
+
     function init0() {
         initializeFileSystem();
     }
 
     function init1() {
-        // file system initialization is complete - proceed
+        // file system initialization is complete - proceed with initialization
+
         if (runSetup) {
             retrieveSyncSpec();
         }
         else {
             // not running setup - normal runtime
             launchRuntime();
-            //readCurrentSync();
         }
     }
 
-    function init2(currentSync) {
-        parseSyncSpec(currentSync);
-    }
+    //function init2(xmlDoc) {
+    //    autoSchedule = xmlDoc;
+    //    parseSyncSpec(currentSync);
+    //}
 
     function playerStateMachine() {
 
@@ -300,18 +317,150 @@ $(document).ready(function () {
 
         // perform any necessary initialization
 
-        // Create player state machine
-        debugger;
-        var playerHSM = new playerStateMachine()
-        playerHSM.Initialize();
+        // get current sync (only support networking currently)
+        readCurrentSync(launchRuntime1);
+    }
 
+    function launchRuntime1(xmlDoc) {
+
+        currentSync = xmlDoc;
+
+        //  create networking state machine and initialize it
+        var networkingHSM = new networkingStateMachine();
+        networkingHSM.Initialize();
+
+        // Create player state machine
+        var playerHSM = new playerStateMachine();
+        playerHSM.Initialize();
     }
 
     function InitializePlayerHSM() {
+
         console.log("InitializePlayerHSM invoked");
+
+        Restart("");
+
         return this.stWaiting;
     }
 
+    function readAutoSchedule(nextFunction) {
+        readXmlFile("autoschedule.xml", nextFunction);
+    }
+
+    function Restart(presentationName) {
+
+        if (presentationName == "") {
+            // read the autoschedule.xml file and parse it to get the schedule object
+            readAutoSchedule(restartWithAutoschedule);
+        }
+    }
+
+    function parseAutoSchedule(autoScheduleXml) {
+
+        var schedule = {};
+
+        var autoSchedule = autoScheduleXml.childNodes[0];
+        var scheduledPresentation = autoSchedule.children[0];
+
+        $.each(scheduledPresentation.children, function (index, scheduledPresentationChild) {
+            if (scheduledPresentationChild.localName == "presentationToSchedule") {
+                var presentationToScheduleChildren = scheduledPresentationChild.children;
+                $.each(presentationToScheduleChildren, function (index, presentationToScheduleChild) {
+                    if (presentationToScheduleChild.localName == "name") {
+                        var presentationName = presentationToScheduleChild.innerHTML;
+                        schedule.autoplayPoolFile = presentationName;
+                    }
+                });
+            }
+        });
+
+        return schedule;
+    }
+
+    function readAutoplay(fileName, nextFunction) {
+        readXmlFile(fileName, nextFunction);
+    }
+
+    function restartWithAutoschedule(xmlDoc) {
+
+        // get autoschedule, parse it to get the schedule and the active presentation
+        autoSchedule = xmlDoc;
+        var schedule = parseAutoSchedule(autoSchedule);
+        var xmlFileName = "autoplay-" + schedule.autoplayPoolFile + ".xml";
+        activePresentation = schedule.autoplayPoolFile;
+
+        if (xmlFileName != "") {
+            // retrieve the xml file associated with the active presentation and create a new sign from this specification
+            readAutoplay(xmlFileName, createNewSign);
+        }
+    }
+
+    //var currentSign;
+
+    //function parsePlaylist(playlistXML) {
+    //    // name
+    //    // type
+    //    // states
+    //}
+
+    //function parseZones(zonesXML) {
+
+    //    $.each(zonesXML, function (index, zoneXML) {
+    //        var zone = {};
+    //        $.each(zoneXML.children, function (index, zoneData) {
+    //            var value = zoneData.innerHTML;
+    //            switch (zoneData.localName) {
+    //                case "name":
+    //                    zone.name = value;
+    //                    break;
+    //                case "x":
+    //                    zone.x = value;
+    //                    break;
+    //                case "y":
+    //                    zone.y = value;
+    //                    break;
+    //                case "width":
+    //                    zone.width = value;
+    //                    break;
+    //                case "height":
+    //                    zone.height = value;
+    //                    break;
+    //                case "type":
+    //                    zone.type = value;
+    //                    break;
+    //                case "id":
+    //                    zone.name = value;
+    //                    break;
+    //                case "playlist":
+    //                    debugger;
+    //                    break;
+    //                default:
+    //                    break;
+    //            };
+    //        });
+    //    });
+    //}
+
+    function createNewSign(signXML) {
+
+        debugger;
+        var signJSON = XML2JSON(signXML);
+
+        //currentSign = signXML;
+
+        //var BrightAuthor = signXML.childNodes[0]
+
+        //$.each(BrightAuthor.children, function (index, BrightAuthorChild) {
+
+        //    if (BrightAuthorChild.localName == "meta") {
+        //    }
+        //    else if (BrightAuthorChild.localName == "zones") {
+        //        parseZones(BrightAuthorChild.children);
+        //    }
+        //});
+
+        //debugger;
+    }
 
     function retrieveSyncSpec() {
 
@@ -349,9 +498,11 @@ $(document).ready(function () {
         });
     }
 
-    function readCurrentSync() {
+    function readCurrentSync(nextFunction) {
+        readXmlFile("current-sync.xml", nextFunction);
+    }
 
-        var fileToRetrieve = "current-sync.xml";
+    function readXmlFile(fileToRetrieve, nextFunction) {
 
         // try to get the file from the file system
         _fileSystem.root.getFile(fileToRetrieve, {}, function (fileEntry) {
@@ -363,7 +514,8 @@ $(document).ready(function () {
                 reader.onloadend = function (e) {   // this.result
                     var parser = new DOMParser();
                     var xmlDoc = parser.parseFromString(this.result, "text/xml");
-                    init2(xmlDoc);
+                    //init2(xmlDoc);
+                    nextFunction(xmlDoc);
                 };
 
                 reader.readAsText(file);
@@ -457,7 +609,9 @@ $(document).ready(function () {
         var filesToDownload = [];
 
         $.each(downloadItems, function (index, downloadItem) {
-            // for now, only download specific file types (.jpg, .png, .mp4)
+            // for now, only download specific file types (.jpg, .png, .mp4) and the following files
+            //      autoschedule.xml
+            //      autoplay-<presentation name>.xml
             if (downloadItem.name != undefined) {
                 var fileName = downloadItem.name.toLowerCase();
                 var n = fileName.lastIndexOf(".jpg");
@@ -479,6 +633,16 @@ $(document).ready(function () {
                         if (downloadItem.name.length == (n + 4)) {
                             console.log("found downloadItem " + downloadItem.name);
                             downloadItem.mimeType = "video/mp4";
+                            filesToDownload.push(downloadItem);
+                        }
+                        else if (fileName == "autoschedule.xml") {
+                            console.log("found downloadItem " + downloadItem.name);
+                            downloadItem.mimeType = "text/xml";
+                            filesToDownload.push(downloadItem);
+                        }
+                        else if (fileName.lastIndexOf("autoplay-") == 0) {
+                            console.log("found downloadItem " + downloadItem.name);
+                            downloadItem.mimeType = "text/xml";
                             filesToDownload.push(downloadItem);
                         }
                     }
