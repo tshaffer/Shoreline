@@ -232,22 +232,86 @@ $(document).ready(function () {
     });
 
     function init0() {
-        // initialize file system
         initializeFileSystem();
     }
 
     function init1() {
+        // file system initialization is complete - proceed
         if (runSetup) {
             retrieveSyncSpec();
         }
         else {
-            readCurrentSync();
+            // not running setup - normal runtime
+            launchRuntime();
+            //readCurrentSync();
         }
     }
 
     function init2(currentSync) {
         parseSyncSpec(currentSync);
     }
+
+    function playerStateMachine() {
+
+        HSM.call(this); //call super constructor.
+
+        this.InitialPseudoStateHandler = InitializePlayerHSM;
+
+        this.stTop = new HState(this, "Top");
+        this.stTop.HStateEventHandler = STTopEventHandler;
+
+        this.stPlayer = new HState(this, "Player");
+        this.stPlayer.HStateEventHandler = STPlayerEventHandler
+        this.stPlayer.superState = this.stTop
+
+        this.stPlaying = new HState(this, "Playing")
+        this.stPlaying.HStateEventHandler = STPlayingEventHandler
+        this.stPlaying.superState = this.stPlayer
+        //this.stPlaying.RetrieveLiveDataFeed = RetrieveLiveDataFeed
+        //this.stPlaying.UpdateTimeClockEvents = UpdateTimeClockEvents
+
+        this.stWaiting = new HState(this, "Waiting")
+        this.stWaiting.HStateEventHandler = STWaitingEventHandler
+        this.stWaiting.superState = this.stPlayer
+
+        this.topState = this.stTop
+    }
+
+    //subclass extends superclass
+    playerStateMachine.prototype = Object.create(HSM.prototype);
+    playerStateMachine.prototype.constructor = playerStateMachine;
+
+    function STPlayerEventHandler(event, stateData) {
+        stateData.nextState = this.superState
+        return "SUPER"
+    }
+
+    function STPlayingEventHandler(event, stateData) {
+        stateData.nextState = this.superState
+        return "SUPER"
+    }
+
+    function STWaitingEventHandler(event, stateData) {
+        stateData.nextState = this.superState
+        return "SUPER"
+    }
+
+    function launchRuntime() {
+
+        // perform any necessary initialization
+
+        // Create player state machine
+        debugger;
+        var playerHSM = new playerStateMachine()
+        playerHSM.Initialize();
+
+    }
+
+    function InitializePlayerHSM() {
+        console.log("InitializePlayerHSM invoked");
+        return this.stWaiting;
+    }
+
 
     function retrieveSyncSpec() {
 
