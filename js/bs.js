@@ -1,7 +1,7 @@
 $(document).ready(function () {
 
     // member variables
-    var runSetup = true;
+    var runSetup = false;
 
     function init() {
 
@@ -178,12 +178,6 @@ $(document).ready(function () {
 
     console.log("entering bs.js");
 
-    function onInitializeFileSystem(fileSystem) {
-        _fileSystem = fileSystem;
-        console.log('Opened file system: ' + _fileSystem.name);
-        //debugger;
-    };
-
     function fileSystemErrorHandler(e) {
         var msg = '';
 
@@ -212,24 +206,48 @@ $(document).ready(function () {
         console.log('fileSystemErrorHandler invoked');
     }
 
-    window.requestFileSystem = window.requestFileSystem || window.webkitRequestFileSystem;
-    window.requestFileSystem(
-        window.PERSISTENT, 10 * 1024 * 1024,
-        onInitializeFileSystem,
-        fileSystemErrorHandler
-    );
+    function onInitializeFileSystem(fileSystem) {
+        _fileSystem = fileSystem;
+        console.log('onInitializeFileSystem: opened file system: ' + _fileSystem.name);
+
+        // proceed with initialization
+        init1();
+    };
+
+    function initializeFileSystem() {
+        window.requestFileSystem = window.requestFileSystem || window.webkitRequestFileSystem;
+        window.requestFileSystem(
+            window.PERSISTENT, 10 * 1024 * 1024,
+            onInitializeFileSystem,
+            fileSystemErrorHandler
+        );
+    }
 
     var startAppButton = document.querySelector('#startApp');
     $('#startApp')[0].innerHTML = "Press to begin";
 
     startAppButton.addEventListener('click', function (e) {
-        console.log("startAppButton pressed");
+        console.log("startAppButton pressed, invoke init0");
+        init0();
+    });
+
+    function init0() {
+        // initialize file system
+        initializeFileSystem();
+    }
+
+    function init1() {
         if (runSetup) {
             retrieveSyncSpec();
         }
         else {
+            readCurrentSync();
         }
-    });
+    }
+
+    function init2(currentSync) {
+        parseSyncSpec(currentSync);
+    }
 
     function retrieveSyncSpec() {
 
@@ -262,8 +280,63 @@ $(document).ready(function () {
         .success(function (data, textStatus, jqXHR) {
             console.log("get success");
             console.log(textStatus);
-            parseSyncSpec($(data)[0])
+            writeCurrentSync($(data)[0]);
+            parseSyncSpec($(data)[0]);
         });
+    }
+
+    function readCurrentSync() {
+
+        var fileToRetrieve = "current-sync.xml";
+
+        // try to get the file from the file system
+        _fileSystem.root.getFile(fileToRetrieve, {}, function (fileEntry) {
+
+            // Get a File object representing the file, then use FileReader to read its contents.
+            fileEntry.file(function (file) {
+                var reader = new FileReader();
+
+                reader.onloadend = function (e) {   // this.result
+                    var parser = new DOMParser();
+                    var xmlDoc = parser.parseFromString(this.result, "text/xml");
+                    init2(xmlDoc);
+                };
+
+                reader.readAsText(file);
+
+            }, function (e) {
+                fileSystemErrorHandler(e);
+            });
+
+        }, function (e) {
+            fileSystemErrorHandler(e);
+        });
+    }
+
+
+    function writeCurrentSync(xml) {
+
+        var xmlText = new XMLSerializer().serializeToString(xml);
+
+        _fileSystem.root.getFile("current-sync.xml", { create: true }, function (fileEntry) {
+            fileEntry.createWriter(function (fileWriter) {
+
+                fileWriter.onwriteend = function (e) {
+                    console.log('Write completed: ' + "current-sync.xml");
+                };
+
+                fileWriter.onerror = function (e) {
+                    console.log('Write failed: ' + e.toString() + " on file " + fileToDownload.name);
+                };
+
+                // https://developer.mozilla.org/en-US/docs/Web/API/Blob#Blob_constructor_example_usage 
+                var aDataParts = [xmlText];
+                var blob = new Blob(aDataParts, { type: 'text/xml' });
+                fileWriter.write(blob);
+
+            }, errorHandler);
+
+        }, errorHandler);
     }
 
     function parseSyncSpec(syncSpec) {
