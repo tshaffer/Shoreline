@@ -395,71 +395,10 @@ $(document).ready(function () {
         }
     }
 
-    //var currentSign;
-
-    //function parsePlaylist(playlistXML) {
-    //    // name
-    //    // type
-    //    // states
-    //}
-
-    //function parseZones(zonesXML) {
-
-    //    $.each(zonesXML, function (index, zoneXML) {
-    //        var zone = {};
-    //        $.each(zoneXML.children, function (index, zoneData) {
-    //            var value = zoneData.innerHTML;
-    //            switch (zoneData.localName) {
-    //                case "name":
-    //                    zone.name = value;
-    //                    break;
-    //                case "x":
-    //                    zone.x = value;
-    //                    break;
-    //                case "y":
-    //                    zone.y = value;
-    //                    break;
-    //                case "width":
-    //                    zone.width = value;
-    //                    break;
-    //                case "height":
-    //                    zone.height = value;
-    //                    break;
-    //                case "type":
-    //                    zone.type = value;
-    //                    break;
-    //                case "id":
-    //                    zone.name = value;
-    //                    break;
-    //                case "playlist":
-    //                    debugger;
-    //                    break;
-    //                default:
-    //                    break;
-    //            };
-    //        });
-    //    });
-    //}
-
     function createNewSign(signXML) {
 
-        debugger;
-        var signJSON = XML2JSON(signXML);
-
-        //currentSign = signXML;
-
-        //var BrightAuthor = signXML.childNodes[0]
-
-        //$.each(BrightAuthor.children, function (index, BrightAuthorChild) {
-
-        //    if (BrightAuthorChild.localName == "meta") {
-        //    }
-        //    else if (BrightAuthorChild.localName == "zones") {
-        //        parseZones(BrightAuthorChild.children);
-        //    }
-        //});
-
-        //debugger;
+        var signAsJSON = XML2JSON(signXML);
+        var signObj = new sign(signAsJSON);
     }
 
     function retrieveSyncSpec() {
