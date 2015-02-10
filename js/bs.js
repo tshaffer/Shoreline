@@ -1,5 +1,5 @@
 // member variables
-var runSetup = false;
+var runSetup = true;
 
 // variables
 var _fileSystem;
@@ -124,7 +124,11 @@ function retrieveSyncSpec() {
         console.log("get success");
         console.log(textStatus);
         writeCurrentSync($(data)[0]);
-        parseSyncSpec($(data)[0]);
+        var filesInSyncSpec = parseSyncSpec($(data)[0]);
+        var filesToDownload = getFilesToDownload(filesInSyncSpec);
+        filesToDisplay = [];
+        getFiles(filesToDownload);
+
     });
 }
 
@@ -158,6 +162,12 @@ function readXmlFile(fileToRetrieve, nextFunction) {
         fileSystemErrorHandler(e);
     });
 }
+
+
+function errorHandler() {
+    debugger;
+}
+
 
 function writeCurrentSync(xml) {
 
@@ -194,13 +204,13 @@ function parseSyncSpec(syncSpec) {
     var client = meta.children[0];
     var server = meta.children[1];
 
-    var downloads = files.children;
+    var filesInSyncSpecXML = files.children;
 
-    var downloadItems = [];
+    var filesInSyncSpec = [];
 
-    $.each(downloads, function (index, download) {
+    $.each(filesInSyncSpecXML, function (index, download) {
 
-        var downloadItem = {};
+        var fileInSyncSpec = {};
 
         $.each(download.children, function (index, downloadChild) {
 
@@ -208,32 +218,195 @@ function parseSyncSpec(syncSpec) {
 
             switch (downloadChild.localName) {
                 case 'name':
-                    downloadItem.name = value;
+                    fileInSyncSpec.name = value;
                     break;
                 case 'link':
-                    downloadItem.link = value;
+                    fileInSyncSpec.link = value;
                     break;
                 case 'size':
-                    downloadItem.size = value;
+                    fileInSyncSpec.size = value;
                     break;
                 case 'hash':
                     var method = downloadChild.attributes[0].name;
                     if (name == "method") {
                         if (nodeValue == "sha1") {
-                            downloadItem.sha1 = value;
+                            fileInSyncSpec.sha1 = value;
                         }
                     }
                     break;
             }
         });
 
-        downloadItems.push(downloadItem);
+        filesInSyncSpec.push(fileInSyncSpec);
     });
 
-    downloadFiles(downloadItems);
+    return filesInSyncSpec;
 }
 
-function downloadFiles(downloadItems) {
+
+function displayItem(index) {
+
+    if (displayList[index].mimeType == "video/mp4") {
+        $('#imageZone').hide();
+        $('#videoZone').show();
+        $("#videoZone").attr('src', displayList[index].blobURL);
+        $('#videoZone')[0].load();
+        $('#videoZone')[0].play();
+
+        $("#videoZone").on("ended", function (e) {
+            console.log("video ended");
+            index = index + 1;
+            if (index >= displayList.length) {
+                index = 0;
+            }
+
+            displayItem(index);
+        });
+    }
+    else {
+        $('#videoZone').hide();
+        $('#imageZone').show();
+        $("#imageZone").attr('src', displayList[index].blobURL);
+
+        setTimeout(
+            function () {
+                index = index + 1;
+                if (index >= displayList.length) {
+                    index = 0;
+                }
+
+                displayItem(index);
+            },
+            2000);
+    }
+}
+
+function displayContent() {
+    var index = 0;
+
+    //Returns format of: filesystem:chrome-extension://nlipipdnicabdffnohdhhliiajoonmgm/persistent/xxxxxxxxxxxx.png
+    //<img src="filesystem:chrome-extension://nlipipdnicabdffnohdhhliiajoonmgm/persistent/xxxxxxxxxxxx.png">
+
+    //var url = "filesystem:chrome-extension://colflmholehgbhkebgghaopnobppmcoe_0/persistent/" + filesToDisplay[index];
+    //var url = "chrome-extension://colflmholehgbhkebgghaopnobppmcoe_0/persistent/" + filesToDisplay[index];
+    //var url = "chrome-extension://colflmholehgbhkebgghaopnobppmcoe/persistent/" + filesToDisplay[index];
+    //var url = "chrome-extension://colflmholehgbhkebgghaopnobppmcoe/" + filesToDisplay[index];
+    //$("#imageInZone").attr('src', url);
+
+    //$("#imageZone").attr('src', filesToDisplay[index].blobURL);
+
+    //var index = 1;
+    //if (index >= filesToDisplay.length) {
+    //    index = 0;
+    //}
+
+    //var url = "./" + filesToDisplay[index].blobURL;
+
+    setTimeout(
+        function () {
+            console.log("time to check for a new sync spec");
+            retrieveSyncSpec();
+        },
+        30000);
+
+    // copy objects from the populated list to the display list
+    displayList = [];
+    $.each(filesToDisplay, function (index, fileToDisplay) {
+        displayList.push(fileToDisplay);
+    });
+
+    if (!displayInProgress) {
+        displayInProgress = true;
+        displayItem(0);
+    }
+}
+
+
+function getFiles(filesToRetrieve) {
+    if (filesToRetrieve.length > 0) {
+        var fileToRetrieve = filesToRetrieve.shift();
+        readFile(fileToRetrieve, filesToRetrieve);
+    }
+    else {
+        displayContent();
+    }
+}
+
+function readFile(fileToRetrieve, filesToRetrieve) {
+
+    // check to see if this file already exists in the file system
+    _fileSystem.root.getFile(fileToRetrieve.name, {}, function (fileEntry) {
+
+        // Get a File object representing the file,
+        // then use FileReader to read its contents.
+        fileEntry.file(function (file) {
+            var reader = new FileReader();
+
+            reader.onloadend = function (e) {   // this.result
+                var byteArray = new Uint8Array(this.result);
+                fileToRetrieve.blob = new Blob([byteArray], { type: fileToRetrieve.mimeType });
+                fileToRetrieve.blobURL = window.URL.createObjectURL(fileToRetrieve.blob);
+
+                filesToDisplay.push(fileToRetrieve);
+                getFiles(filesToRetrieve);
+            };
+
+            reader.readAsArrayBuffer(file);
+
+        }, function (e) {
+            fileSystemErrorHandler(e);
+            downloadFile(fileToRetrieve, filesToRetrieve);
+        });
+
+    }, function (e) {
+        fileSystemErrorHandler(e);
+        downloadFile(fileToRetrieve, filesToRetrieve);
+    });
+}
+
+function downloadFile(fileToDownload, filesToRetrieve) {
+
+    // file does not exist; download it and write it once it is downloaded
+
+    // see http://www.html5rocks.com/en/tutorials/file/xhr2/ for a way to avoid arraybuffer
+    var oReq = new XMLHttpRequest();
+    oReq.open("GET", fileToDownload.link, true);
+    oReq.responseType = "arraybuffer";
+
+    oReq.onload = function (oEvent) {
+        var arrayBuffer = oReq.response; // Note: not oReq.responseText
+        if (arrayBuffer) {
+
+            var byteArray = new Uint8Array(arrayBuffer);
+            fileToDownload.blob = new Blob([byteArray], { type: fileToDownload.mimeType });
+            fileToDownload.blobURL = window.URL.createObjectURL(fileToDownload.blob);
+
+            _fileSystem.root.getFile(fileToDownload.name, { create: true }, function (fileEntry) {
+                fileEntry.createWriter(function (fileWriter) {
+
+                    fileWriter.onwriteend = function (e) {
+                        console.log('Write completed: ' + fileToDownload.name);
+                        filesToDisplay.push(fileToDownload);
+                        getFiles(filesToRetrieve);
+                    };
+
+                    fileWriter.onerror = function (e) {
+                        console.log('Write failed: ' + e.toString() + " on file " + fileToDownload.name);
+                    };
+
+                    fileWriter.write(fileToDownload.blob);
+
+                }, errorHandler);
+
+            }, errorHandler);
+        }
+    };
+
+    oReq.send(null);
+}
+
+
+function getFilesToDownload(downloadItems) {
 
     var filesToDownload = [];
 
@@ -279,9 +452,7 @@ function downloadFiles(downloadItems) {
         }
     });
 
-    //fileToDisplay = filesToDownload[0];
-    filesToDisplay = [];
-    getFiles(filesToDownload);
+    return filesToDownload;
 }
 
 
@@ -466,36 +637,6 @@ $(document).ready(function () {
         // returns a schedule object
     }
 
-    function newSign() {
-        // read all parameters from xml file
-        // initialize certain items
-
-        // read zones - for each zone
-        //      create zonesHSM object
-        //      create hsm for the zone
-        //      add zoneHSM to the sign
-
-    }
-
-    function newZoneHSM() {
-        // get zone type
-        // based on zone type, create the appropriate type of zone
-        //      newVideoOrImagesZoneHSM
-
-        // invoke newPlaylist
-
-        // return zoneHSM
-    }
-
-    function newVideoOrImagesZoneHSM() {
-        // invokes newVideoZoneHSM
-    }
-
-    function newVideoZoneHSM() {
-        // create newHSM
-        // invokes newZoneCommon to set common parameters
-
-    }
 
     // code
 
@@ -515,8 +656,6 @@ $(document).ready(function () {
             fileSystemErrorHandler
         );
     }
-
-
 
     console.log("entering bs.js");
 
@@ -542,11 +681,11 @@ $(document).ready(function () {
         }
         else {
             // not running setup - normal runtime
-            launchRuntime();
+            launchRuntime0();
         }
     }
 
-    function launchRuntime() {
+    function launchRuntime0() {
 
         // perform any necessary initialization
 
@@ -567,169 +706,4 @@ $(document).ready(function () {
         bsp_playerHSM.Initialize();
     }
 
-    function errorHandler() {
-        debugger;
-    }
-
-    function getFiles(filesToRetrieve) {
-        if (filesToRetrieve.length > 0) {
-            var fileToRetrieve = filesToRetrieve.shift();
-            readFile(fileToRetrieve, filesToRetrieve);
-        }
-        else {
-            displayContent();
-        }
-    }
-
-    function readFile(fileToRetrieve, filesToRetrieve) {
-
-        // check to see if this file already exists in the file system
-        _fileSystem.root.getFile(fileToRetrieve.name, {}, function (fileEntry) {
-
-            // Get a File object representing the file,
-            // then use FileReader to read its contents.
-            fileEntry.file(function (file) {
-                var reader = new FileReader();
-
-                reader.onloadend = function (e) {   // this.result
-                    var byteArray = new Uint8Array(this.result);
-                    fileToRetrieve.blob = new Blob([byteArray], { type: fileToRetrieve.mimeType });
-                    fileToRetrieve.blobURL = window.URL.createObjectURL(fileToRetrieve.blob);
-
-                    filesToDisplay.push(fileToRetrieve);
-                    getFiles(filesToRetrieve);
-                };
-
-                reader.readAsArrayBuffer(file);
-
-            }, function (e) {
-                fileSystemErrorHandler(e);
-                downloadFile(fileToRetrieve, filesToRetrieve);
-            });
-
-        }, function (e) {
-            fileSystemErrorHandler(e);
-            downloadFile(fileToRetrieve, filesToRetrieve);
-        });
-    }
-
-    function downloadFile(fileToDownload, filesToRetrieve) {
-
-        // file does not exist; download it and write it once it is downloaded
-
-        // see http://www.html5rocks.com/en/tutorials/file/xhr2/ for a way to avoid arraybuffer
-        var oReq = new XMLHttpRequest();
-        oReq.open("GET", fileToDownload.link, true);
-        oReq.responseType = "arraybuffer";
-
-        oReq.onload = function (oEvent) {
-            var arrayBuffer = oReq.response; // Note: not oReq.responseText
-            if (arrayBuffer) {
-
-                var byteArray = new Uint8Array(arrayBuffer);
-                fileToDownload.blob = new Blob([byteArray], { type: fileToDownload.mimeType });
-                fileToDownload.blobURL = window.URL.createObjectURL(fileToDownload.blob);
-
-                _fileSystem.root.getFile(fileToDownload.name, { create: true }, function (fileEntry) {
-                    fileEntry.createWriter(function (fileWriter) {
-
-                        fileWriter.onwriteend = function (e) {
-                            console.log('Write completed: ' + fileToDownload.name);
-                            filesToDisplay.push(fileToDownload);
-                            getFiles(filesToRetrieve);
-                        };
-
-                        fileWriter.onerror = function (e) {
-                            console.log('Write failed: ' + e.toString() + " on file " + fileToDownload.name);
-                        };
-
-                        fileWriter.write(fileToDownload.blob);
-
-                    }, errorHandler);
-
-                }, errorHandler);
-            }
-        };
-
-        oReq.send(null);
-    }
-
-    function displayItem(index) {
-
-        if (displayList[index].mimeType == "video/mp4") {
-            $('#imageZone').hide();
-            $('#videoZone').show();
-            $("#videoZone").attr('src', displayList[index].blobURL);
-            $('#videoZone')[0].load();
-            $('#videoZone')[0].play();
-
-            $("#videoZone").on("ended", function (e) {
-                console.log("video ended");
-                index = index + 1;
-                if (index >= displayList.length) {
-                    index = 0;
-                }
-
-                displayItem(index);
-            });
-        }
-        else {
-            $('#videoZone').hide();
-            $('#imageZone').show();
-            $("#imageZone").attr('src', displayList[index].blobURL);
-
-            setTimeout(
-                function () {
-                    index = index + 1;
-                    if (index >= displayList.length) {
-                        index = 0;
-                    }
-
-                    displayItem(index);
-                },
-                2000);
-        }
-    }
-
-    function displayContent() {
-        var index = 0;
-
-        //Returns format of: filesystem:chrome-extension://nlipipdnicabdffnohdhhliiajoonmgm/persistent/xxxxxxxxxxxx.png
-        //<img src="filesystem:chrome-extension://nlipipdnicabdffnohdhhliiajoonmgm/persistent/xxxxxxxxxxxx.png">
-
-        //var url = "filesystem:chrome-extension://colflmholehgbhkebgghaopnobppmcoe_0/persistent/" + filesToDisplay[index];
-        //var url = "chrome-extension://colflmholehgbhkebgghaopnobppmcoe_0/persistent/" + filesToDisplay[index];
-        //var url = "chrome-extension://colflmholehgbhkebgghaopnobppmcoe/persistent/" + filesToDisplay[index];
-        //var url = "chrome-extension://colflmholehgbhkebgghaopnobppmcoe/" + filesToDisplay[index];
-        //$("#imageInZone").attr('src', url);
-
-        //$("#imageInZone").attr('src', poop);
-
-        //$("#imageZone").attr('src', filesToDisplay[index].blobURL);
-
-        //var index = 1;
-        //if (index >= filesToDisplay.length) {
-        //    index = 0;
-        //}
-
-        //var url = "./" + filesToDisplay[index].blobURL;
-
-        setTimeout(
-            function () {
-                console.log("time to check for a new sync spec");
-                retrieveSyncSpec();
-            },
-            30000);
-
-        // copy objects from the populated list to the display list
-        displayList = [];
-        $.each(filesToDisplay, function (index, fileToDisplay) {
-            displayList.push(fileToDisplay);
-        });
-
-        if (!displayInProgress) {
-            displayInProgress = true;
-            displayItem(0);
-        }
-    }
 });
