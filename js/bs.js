@@ -9,6 +9,7 @@ var displayInProgress = false;
 
 // BSP variables
 var currentSync = null;
+var currentSyncAsJson = null;
 var autoSchedule = null;
 var activePresentation = "";
 var bsp_sign = null;
@@ -572,6 +573,7 @@ $(document).ready(function () {
     function launchRuntime1(xmlDoc) {
 
         currentSync = xmlDoc;
+        currentSyncSpecAsJson = XML2JSON(currentSync);
 
         var filesInSyncSpec = parseSyncSpec(currentSync);
         var filesToDownload = getFilesToDownload(filesInSyncSpec);
