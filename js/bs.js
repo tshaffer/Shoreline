@@ -87,6 +87,7 @@ function createNewSign(signXML) {
     var signObj = new sign(signAsJSON);
     bsp_sign = signObj;
 
+    // TODO
     var event = {};
     event["EventType"] = "signReadCompleted";
     bsp_playerHSM.Dispatch(event);
@@ -510,26 +511,6 @@ function bsp_StartPlayback() {
             }
         });
     }
-}
-
-
-function displayImage(state) {
-
-    $('#videoZone').hide();
-    $('#imageZone').show();
-    $("#imageZone").attr('src', state.imageItem.fileToDisplay.blobURL);
-
-    setTimeout(
-        function () {
-            debugger;
-            //index = index + 1;
-            //if (index >= displayList.length) {
-            //    index = 0;
-            //}
-
-            //displayItem(index);
-        },
-        parseInt(state.timeoutValue) * 1000);
 }
 
 

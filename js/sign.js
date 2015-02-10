@@ -98,6 +98,80 @@ function state(zone, stateAsJSON) {
 state.prototype = Object.create(HState.prototype);
 state.prototype.constructor = state;
 
+state.prototype.displayImage = function () {
+
+    $('#videoZone').hide();
+    $('#imageZone').show();
+    $("#imageZone").attr('src', this.imageItem.fileToDisplay.blobURL);
+}
+
+state.prototype.launchTimer = function () {
+
+    var thisState = this;
+    setTimeout(
+        function () {
+            // TODO HACK
+            var event = {};
+            event["EventType"] = "timeoutEvent";
+            thisState.stateMachine.Dispatch(event);
+        },
+        parseInt(this.timeoutValue) * 1000);
+}
+
+
+state.prototype.mediaItemEventHandler = function (event, stateData) {
+
+    var eventType = event["EventType"];
+
+    switch (eventType) {
+        case 'timeoutEvent':
+            if (typeof this.timeoutEvent == "object") {
+                // TODO - how do I know that it's the right timeout event? shouldn't be that hard.
+                return this.executeTransition(this.timeoutEvent, stateData, "");
+            }
+            break;
+    }
+
+    stateData.nextState = this.superState;
+    return "SUPER";
+}
+
+
+state.prototype.executeTransition = function (transition, stateData, payload) {
+
+    var nextStateName = "init";
+
+    while (nextStateName != "") {
+        
+        // before transitioning to next state, ensure that the transition is allowed
+        var nextState = this.getNextStateName(transition);
+        nextStateName = nextState.nextStateName;
+        var actualTarget = nextState.actualTarget;
+
+        if (nextStateName != "") {
+            nextState = this.stateMachine.stateTable[nextStateName];
+            break;
+        }
+    }
+
+    stateData.nextState = this.stateMachine.stateTable[nextStateName];
+    stateData.nextState.payload = "";
+
+    return "TRANSITION";
+}
+
+
+state.prototype.getNextStateName = function (transition) {
+
+    var nextState = {};
+
+    nextStateName = transition.targetMediaStateName;
+
+    nextState.nextStateName = nextStateName;
+    nextState.actualTarget = transition;
+    return nextState
+}
+
 
 function imageItem(imageItemAsJSON) {
 
@@ -114,7 +188,6 @@ function imageItem(imageItemAsJSON) {
             thisImageItem.fileToDisplay = fileToDisplay;
         }
     });
-    //this.HStateEventHandler = STDisplayingImageEventHandler
 }
 
 function transition(transitionAsJSON, stateTable) {
@@ -156,13 +229,21 @@ STDisplayingImageEventHandler = function (event, stateData) {
 
     stateData.nextState = null;
 
-    if (event["EventType"] == "ENTRY_SIGNAL") {
+    var eventType = event["EventType"];
+
+    if (eventType == "ENTRY_SIGNAL") {
         console.log(this.id + ": entry signal");
-        displayImage(this);
+        this.displayImage();
+        this.launchTimer();
         return "HANDLED";
     }
-    else if (event["EventType"] == "EXIT_SIGNAL") {
+    else if (eventType == "EXIT_SIGNAL") {
         console.log(this.id + ": exit signal");
+    }
+        //else if (event["EventType"] == "") {
+    else if (eventType != "EMPTY_SIGNAL" && eventType != "INIT_SIGNAL") {
+        console.log(this.id + ": received event " + event["EventType"]);
+        return this.mediaItemEventHandler(event, stateData);
     }
 
     stateData.nextState = this.superState;
