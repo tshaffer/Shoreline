@@ -1,5 +1,5 @@
 // member variables
-var runSetup = true;
+var runSetup = false;
 
 // variables
 var _fileSystem;
@@ -127,7 +127,7 @@ function retrieveSyncSpec() {
         var filesInSyncSpec = parseSyncSpec($(data)[0]);
         var filesToDownload = getFilesToDownload(filesInSyncSpec);
         filesToDisplay = [];
-        getFiles(filesToDownload);
+        getFiles(filesToDownload, displayContent);
 
     });
 }
@@ -322,17 +322,20 @@ function displayContent() {
 }
 
 
-function getFiles(filesToRetrieve) {
+function getFiles(filesToRetrieve, nextFunction) {
     if (filesToRetrieve.length > 0) {
         var fileToRetrieve = filesToRetrieve.shift();
-        readFile(fileToRetrieve, filesToRetrieve);
+        readFile(fileToRetrieve, filesToRetrieve, nextFunction);
     }
     else {
-        displayContent();
+        //displayContent();
+        if (nextFunction != null) {
+            nextFunction();
+        }
     }
 }
 
-function readFile(fileToRetrieve, filesToRetrieve) {
+function readFile(fileToRetrieve, filesToRetrieve, functionToCallAfterAllFilesGot) {
 
     // check to see if this file already exists in the file system
     _fileSystem.root.getFile(fileToRetrieve.name, {}, function (fileEntry) {
@@ -348,7 +351,7 @@ function readFile(fileToRetrieve, filesToRetrieve) {
                 fileToRetrieve.blobURL = window.URL.createObjectURL(fileToRetrieve.blob);
 
                 filesToDisplay.push(fileToRetrieve);
-                getFiles(filesToRetrieve);
+                getFiles(filesToRetrieve, functionToCallAfterAllFilesGot);
             };
 
             reader.readAsArrayBuffer(file);
@@ -387,7 +390,7 @@ function downloadFile(fileToDownload, filesToRetrieve) {
                     fileWriter.onwriteend = function (e) {
                         console.log('Write completed: ' + fileToDownload.name);
                         filesToDisplay.push(fileToDownload);
-                        getFiles(filesToRetrieve);
+                        getFiles(filesToRetrieve, displayContent);
                     };
 
                     fileWriter.onerror = function (e) {
@@ -510,135 +513,27 @@ function bsp_StartPlayback() {
 }
 
 
+function displayImage(state) {
+
+    $('#videoZone').hide();
+    $('#imageZone').show();
+    $("#imageZone").attr('src', state.imageItem.fileToDisplay.blobURL);
+
+    setTimeout(
+        function () {
+            debugger;
+            //index = index + 1;
+            //if (index >= displayList.length) {
+            //    index = 0;
+            //}
+
+            //displayItem(index);
+        },
+        parseInt(state.timeoutValue) * 1000);
+}
+
+
 $(document).ready(function () {
-
-
-    function init() {
-
-        // set script version strings
-
-        // logging output?
-
-        // any information required similar to roDeviceInfo
-
-        // edid?
-
-        // InitRemoteSnapshots
-
-        // any system software version compatibility issues?
-
-        // RunBSP();
-    }
-
-    function RunBSP() {
-    
-        // newBSP();
-
-        // read registry settings
-
-        // create / initialize global variables
-
-        // control port
-        // storage hotplug
-        // networking hotplug
-        // disk monitor
-        // video mode
-        // blc
-        // button panels (bp's)
-
-        // set lwsEnabled
-        // if lwsEnabled
-        //      set lws handlers
-        
-        // create directories
-        //      pool
-        //      feedPool
-        //      feed_cache
-        //      snapshots
-
-        // create assetPools
-
-        // look for local-sync.xml
-        // if it exists,
-        //      initialize assetCollection, assetPoolFiles
-        // usb update content initialization
-
-        // look for current-sync.xml
-        // if it exists,
-        //      set data transfer type used for content, text feeds, health, mediaFeeds, and logs to wired or wireless
-        //      ** create networkingStateMachine
-        //      initializeAssetCollection, assetPoolFiles
-        //      ** call init() on networkingStateMachine
-
-        // determine and set file paths for global files
-
-        // initialize logging parameters
-
-        // setup logging
-
-        // InitializeNonPrintableKeyboardCodeList
-
-        // protect the current assets (from deletion)
-
-        // limit pool sizes
-
-        // setup BrightSign Application Server
-
-        // create GPIO state machines and associated data structures
-
-        // create BP state machines and associated data structures
-
-        // *** create player state machine, initialize
-
-        // check BLCs status (init as well?)
-
-        // go into event loop
-    }
-
-    function newBSP() {
-
-        // registry variables?
-    }
-
-    function tmpRestart() {
-        // initialize lots of variables
-
-        // if there's no presentation name,
-        //      get autoSchedule file - calls XMLAutoschedule(xmlFileName) to get schedule object
-        //      sets m.schedule
-        //      sets presentationName
-        // else
-        //      sets autoPlayFileName$ from presentationName$
-        //      sets m.activePresentation$
-        
-        // if there's a BrightAuthor xmlFile,
-        //      read it and parse it (xml)
-        //      invoke newSign
-        // else
-        //      set idle screen color
-        
-        // if there's an active sign,
-        //      stop and invalidate all the existing video and audio players
-
-        // create gpio state machines
-        // create, initialize, and configure required BP state machines and BP's
-
-        // initialize user variable web server
-
-        // initialize script plugins
-
-        // initialize device web page
-    }
-
-    function XMLAutoschedule(xmlFileName) {
-        // read autoschedule.xml file
-        // invoke newSchedule on autoscheduleXML file to get a schedule
-        // if an active schedule is found, sets m.activePresentation$, schedule.autoplayPoolFile$
-        // returns a schedule object
-    }
-
-
-    // code
 
     function onInitializeFileSystem(fileSystem) {
         _fileSystem = fileSystem;
@@ -696,6 +591,14 @@ $(document).ready(function () {
     function launchRuntime1(xmlDoc) {
 
         currentSync = xmlDoc;
+
+        var filesInSyncSpec = parseSyncSpec(currentSync);
+        var filesToDownload = getFilesToDownload(filesInSyncSpec);
+        filesToDisplay = [];
+        getFiles(filesToDownload, launchRuntime2);
+    }
+
+    function launchRuntime2() {
 
         //  create networking state machine and initialize it
         var networkingHSM = new networkingStateMachine();

@@ -37,19 +37,11 @@ function zoneStateMachine(zoneAsJSON) {
     this.type = zoneAsJSON.type;
     this.id = zoneAsJSON.id;
     this.playlist = new playlist(this, zoneAsJSON.playlist);
-
-
 }
 
 //subclass extends superclass
 zoneStateMachine.prototype = Object.create(HSM.prototype);
 zoneStateMachine.prototype.constructor = zoneStateMachine;
-
-zoneStateMachine.prototype.createState = function (stateName) {
-    var state = new HState(this, stateName);
-    return state;
-}
-
 
 function playlist(zone, playlistAsJSON) {
 
@@ -62,18 +54,8 @@ function playlist(zone, playlistAsJSON) {
     zone.stateTable = {};
     var zoneStateTable = zone.stateTable;
     $.each(playlistAsJSON.states.state, function (index, stateAsJSON) {
-        var state = zone.createState(stateAsJSON.name);
-        state.name = stateAsJSON.name;
-        // TODO - HACK
-        if (typeof stateAsJSON.imageItem == "object") {
-            state.imageItem = new imageItem(stateAsJSON.imageItem);
-            state.HStateEventHandler = STDisplayingImageEventHandler;
-            state.superState = state.stateMachine.stTop;
-        }
-        zoneStateTable[state.id] = state
-
-        //playlistStates.push(state);
-        //playlistStates.push(new state(zone, stateAsJSON));
+        var newState = new state(zone, stateAsJSON);
+        zoneStateTable[newState.id] = newState;
     });
 
     // find the initial state for the playlist
@@ -96,14 +78,26 @@ function playlist(zone, playlistAsJSON) {
     });
 }
 
-//function state(zone, stateAsJSON) {
+function state(zone, stateAsJSON) {
 
-//    this.name = stateAsJSON.name;
+    HState.call(this); //call super constructor. TODO - calls no parameter constructor - is there any way to get it to call the one with parameters?
+    this.stateMachine = zone;
+    this.obj = zone;
+    this.id = stateAsJSON.name;
+    this.name = stateAsJSON.name;
 
-//    if (typeof stateAsJSON.imageItem == "object") {
-//        this.imageItem = new imageItem(stateAsJSON.imageItem);
-//    }
-//}
+    if (typeof stateAsJSON.imageItem == "object") {
+        this.imageItem = new imageItem(stateAsJSON.imageItem);
+        this.HStateEventHandler = STDisplayingImageEventHandler;
+    }
+
+    this.superState = this.stateMachine.stTop;
+}
+
+//subclass extends superclass
+state.prototype = Object.create(HState.prototype);
+state.prototype.constructor = state;
+
 
 function imageItem(imageItemAsJSON) {
 
@@ -112,6 +106,14 @@ function imageItem(imageItemAsJSON) {
     this.slideTransition = imageItemAsJSON.slideTransition;
     this.transitionDuration = imageItemAsJSON.transitionDuration;
 
+    var thisImageItem = this;
+
+    // find the display item in memory
+    $.each(filesToDisplay, function (index, fileToDisplay) {
+        if (thisImageItem.fileName == fileToDisplay.name) {
+            thisImageItem.fileToDisplay = fileToDisplay;
+        }
+    });
     //this.HStateEventHandler = STDisplayingImageEventHandler
 }
 
@@ -156,7 +158,7 @@ STDisplayingImageEventHandler = function (event, stateData) {
 
     if (event["EventType"] == "ENTRY_SIGNAL") {
         console.log(this.id + ": entry signal");
-        debugger;
+        displayImage(this);
         return "HANDLED";
     }
     else if (event["EventType"] == "EXIT_SIGNAL") {
