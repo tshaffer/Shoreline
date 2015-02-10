@@ -87,7 +87,6 @@ function createNewSign(signXML) {
     var signObj = new sign(signAsJSON);
     bsp_sign = signObj;
 
-    debugger;
     var event = {};
     event["EventType"] = "signReadCompleted";
     bsp_playerHSM.Dispatch(event);
@@ -317,10 +316,26 @@ function bsp_StartPlayback() {
 
     var sign = bsp_sign;
 
-    debugger;
-
     // kick off playback
+    var numZones = sign.zones.length;
+    if (numZones > 0) {
 
+        // construct the zones
+        $.each(sign.zones, function (index, zone) {
+            if (zone.playlist != null) {
+                console.log("### Constructor zone");
+                zone.Constructor();
+            }
+        });
+
+        // launch the zones
+        $.each(sign.zones, function (index, zone) {
+            if (zone.playlist != null) {
+                console.log("### Launch playback");
+                zone.Initialize();
+            }
+        });
+    }
 }
 
 

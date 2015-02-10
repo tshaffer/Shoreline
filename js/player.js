@@ -11,17 +11,17 @@
     this.stPlayer.HStateEventHandler = this.STPlayerEventHandler;
     this.stPlayer.superState = this.stTop
 
-    this.stPlaying = new HState(this, "Playing")
+    this.stPlaying = new HState(this, "Playing");
     this.stPlaying.HStateEventHandler = this.STPlayingEventHandler;
     this.stPlaying.superState = this.stPlayer
     //this.stPlaying.RetrieveLiveDataFeed = RetrieveLiveDataFeed
     //this.stPlaying.UpdateTimeClockEvents = UpdateTimeClockEvents
 
-    this.stWaiting = new HState(this, "Waiting")
+    this.stWaiting = new HState(this, "Waiting");
     this.stWaiting.HStateEventHandler = this.STWaitingEventHandler
     this.stWaiting.superState = this.stPlayer
 
-    this.stWaitingForSign = new HState(this, "WaitingForSign")
+    this.stWaitingForSign = new HState(this, "WaitingForSign");
     this.stWaitingForSign.HStateEventHandler = this.STWaitingForSignEventHandler;
     this.stWaitingForSign.superState = this.stPlayer
 
@@ -119,15 +119,7 @@ function InitializePlayerHSM() {
 
     Restart("");
 
-    //activeScheduledPresentation = m.bsp.schedule.activeScheduledEvent
-    //if type(activeScheduledPresentation) = "roAssociativeArray" then
-    //    return m.stPlaying
-    //else
-    //    return m.stWaiting
-    //endif
-
-    //return this.stWaiting;
-    //return this.stPlaying;
+    // need to wait for the sign object to be completely read in before going into the playing state
     return this.stWaitingForSign;
 }
 
