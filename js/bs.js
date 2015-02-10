@@ -1,7 +1,331 @@
+// member variables
+var runSetup = false;
+
+// variables
+var _fileSystem;
+var filesToDisplay = [];
+var displayList = [];
+var displayInProgress = false;
+
+// BSP variables
+var currentSync = null;
+var autoSchedule = null;
+var activePresentation = "";
+var bsp_sign = null;
+var bsp_playerHSM = null;
+
+//xml to JSON singleton object
+var converter;  
+
+function XML2JSON(xml) {
+    if (!converter) {
+        converter = new X2JS();
+    }
+    return converter.xml2json(xml);
+}
+
+
+function fileSystemErrorHandler(e) {
+    var msg = '';
+
+    switch (e.code) {
+        case FileError.QUOTA_EXCEEDED_ERR:
+            msg = 'QUOTA_EXCEEDED_ERR';
+            break;
+        case FileError.NOT_FOUND_ERR:
+            msg = 'NOT_FOUND_ERR';
+            break;
+        case FileError.SECURITY_ERR:
+            msg = 'SECURITY_ERR';
+            break;
+        case FileError.INVALID_MODIFICATION_ERR:
+            msg = 'INVALID_MODIFICATION_ERR';
+            break;
+        case FileError.INVALID_STATE_ERR:
+            msg = 'INVALID_STATE_ERR';
+            break;
+        default:
+            msg = 'Unknown Error';
+            break;
+    };
+
+    console.log('Error: ' + msg);
+    console.log('fileSystemErrorHandler invoked');
+}
+
+function readAutoSchedule(nextFunction) {
+    readXmlFile("autoschedule.xml", nextFunction);
+}
+
+
+function Restart(presentationName) {
+
+    if (presentationName == "") {
+        // read the autoschedule.xml file and parse it to get the schedule object
+        readAutoSchedule(restartWithAutoschedule);
+    }
+}
+
+
+function restartWithAutoschedule(xmlDoc) {
+
+    // get autoschedule, parse it to get the schedule and the active presentation
+    autoSchedule = xmlDoc;
+    var schedule = parseAutoSchedule(autoSchedule);
+    var xmlFileName = "autoplay-" + schedule.autoplayPoolFile + ".xml";
+    activePresentation = schedule.autoplayPoolFile;
+
+    if (xmlFileName != "") {
+        // retrieve the xml file associated with the active presentation and create a new sign from this specification
+        readAutoplay(xmlFileName, createNewSign);
+    }
+}
+
+function createNewSign(signXML) {
+
+    var signAsJSON = XML2JSON(signXML);
+    var signObj = new sign(signAsJSON);
+    bsp_sign = signObj;
+
+    debugger;
+    var event = {};
+    event["EventType"] = "signReadCompleted";
+    bsp_playerHSM.Dispatch(event);
+}
+
+function retrieveSyncSpec() {
+
+    console.log("retrieveSyncSpec invoked");
+
+    $.ajax({
+        url: "https://services.brightsignnetwork.com/bs/CheckForContent.ashx",
+        type: 'GET',
+        dataType: 'xml',
+        headers: {
+            "account": "ted",
+            "password": "tedpwd",
+            "group": "aws",
+            "user": "teduser",
+            "presentationName": "none",
+            "DeviceID": "L4C49T000025",
+            "DeviceModel": "XD1132",
+            "DeviceFamily": "lynx",
+            "DeviceFWVersion": "5.1.16",
+            "DeviceSWVersion": "7.1.6",
+            "CustomAutorunVersion": "7.1.0",
+            "timezone": "PST",
+            "localTime": "2014/12/09 15:35:37.936",
+            "storage-size": "7631",
+            "storage-fs": "fat32",
+            "storage-current-used": "5"
+        },
+        error: function () { debugger; },
+    })
+    .success(function (data, textStatus, jqXHR) {
+        console.log("get success");
+        console.log(textStatus);
+        writeCurrentSync($(data)[0]);
+        parseSyncSpec($(data)[0]);
+    });
+}
+
+function readCurrentSync(nextFunction) {
+    readXmlFile("current-sync.xml", nextFunction);
+}
+
+function readXmlFile(fileToRetrieve, nextFunction) {
+
+    // try to get the file from the file system
+    _fileSystem.root.getFile(fileToRetrieve, {}, function (fileEntry) {
+
+        // Get a File object representing the file, then use FileReader to read its contents.
+        fileEntry.file(function (file) {
+            var reader = new FileReader();
+
+            reader.onloadend = function (e) {   // this.result
+                var parser = new DOMParser();
+                var xmlDoc = parser.parseFromString(this.result, "text/xml");
+                //init2(xmlDoc);
+                nextFunction(xmlDoc);
+            };
+
+            reader.readAsText(file);
+
+        }, function (e) {
+            fileSystemErrorHandler(e);
+        });
+
+    }, function (e) {
+        fileSystemErrorHandler(e);
+    });
+}
+
+function writeCurrentSync(xml) {
+
+    var xmlText = new XMLSerializer().serializeToString(xml);
+
+    _fileSystem.root.getFile("current-sync.xml", { create: true }, function (fileEntry) {
+        fileEntry.createWriter(function (fileWriter) {
+
+            fileWriter.onwriteend = function (e) {
+                console.log('Write completed: ' + "current-sync.xml");
+            };
+
+            fileWriter.onerror = function (e) {
+                console.log('Write failed: ' + e.toString() + " on file " + fileToDownload.name);
+            };
+
+            // https://developer.mozilla.org/en-US/docs/Web/API/Blob#Blob_constructor_example_usage 
+            var aDataParts = [xmlText];
+            var blob = new Blob(aDataParts, { type: 'text/xml' });
+            fileWriter.write(blob);
+
+        }, errorHandler);
+
+    }, errorHandler);
+}
+
+function parseSyncSpec(syncSpec) {
+
+    var sync = syncSpec.childNodes[0]
+
+    var meta = sync.children[0];
+    var files = sync.children[1];
+
+    var client = meta.children[0];
+    var server = meta.children[1];
+
+    var downloads = files.children;
+
+    var downloadItems = [];
+
+    $.each(downloads, function (index, download) {
+
+        var downloadItem = {};
+
+        $.each(download.children, function (index, downloadChild) {
+
+            var value = downloadChild.innerHTML;
+
+            switch (downloadChild.localName) {
+                case 'name':
+                    downloadItem.name = value;
+                    break;
+                case 'link':
+                    downloadItem.link = value;
+                    break;
+                case 'size':
+                    downloadItem.size = value;
+                    break;
+                case 'hash':
+                    var method = downloadChild.attributes[0].name;
+                    if (name == "method") {
+                        if (nodeValue == "sha1") {
+                            downloadItem.sha1 = value;
+                        }
+                    }
+                    break;
+            }
+        });
+
+        downloadItems.push(downloadItem);
+    });
+
+    downloadFiles(downloadItems);
+}
+
+function downloadFiles(downloadItems) {
+
+    var filesToDownload = [];
+
+    $.each(downloadItems, function (index, downloadItem) {
+        // for now, only download specific file types (.jpg, .png, .mp4) and the following files
+        //      autoschedule.xml
+        //      autoplay-<presentation name>.xml
+        if (downloadItem.name != undefined) {
+            var fileName = downloadItem.name.toLowerCase();
+            var n = fileName.lastIndexOf(".jpg");
+            if (downloadItem.name.length == (n + 4)) {
+                console.log("found downloadItem " + downloadItem.name);
+                downloadItem.mimeType = "image/jpeg";
+                filesToDownload.push(downloadItem);
+            }
+            else {
+                n = fileName.lastIndexOf(".png");
+                var startIndex = fileName.lastIndexOf("applicationwebserver")
+                if (downloadItem.name.length == (n + 4) && (startIndex != 0)) {
+                    console.log("found downloadItem " + downloadItem.name);
+                    downloadItem.mimeType = "image/png";
+                    filesToDownload.push(downloadItem);
+                }
+                else {
+                    n = fileName.lastIndexOf(".mp4");
+                    if (downloadItem.name.length == (n + 4)) {
+                        console.log("found downloadItem " + downloadItem.name);
+                        downloadItem.mimeType = "video/mp4";
+                        filesToDownload.push(downloadItem);
+                    }
+                    else if (fileName == "autoschedule.xml") {
+                        console.log("found downloadItem " + downloadItem.name);
+                        downloadItem.mimeType = "text/xml";
+                        filesToDownload.push(downloadItem);
+                    }
+                    else if (fileName.lastIndexOf("autoplay-") == 0) {
+                        console.log("found downloadItem " + downloadItem.name);
+                        downloadItem.mimeType = "text/xml";
+                        filesToDownload.push(downloadItem);
+                    }
+                }
+            }
+        }
+    });
+
+    //fileToDisplay = filesToDownload[0];
+    filesToDisplay = [];
+    getFiles(filesToDownload);
+}
+
+
+function parseAutoSchedule(autoScheduleXml) {
+
+    var schedule = {};
+
+    var autoSchedule = autoScheduleXml.childNodes[0];
+    var scheduledPresentation = autoSchedule.children[0];
+
+    $.each(scheduledPresentation.children, function (index, scheduledPresentationChild) {
+        if (scheduledPresentationChild.localName == "presentationToSchedule") {
+            var presentationToScheduleChildren = scheduledPresentationChild.children;
+            $.each(presentationToScheduleChildren, function (index, presentationToScheduleChild) {
+                if (presentationToScheduleChild.localName == "name") {
+                    var presentationName = presentationToScheduleChild.innerHTML;
+                    schedule.autoplayPoolFile = presentationName;
+                }
+            });
+        }
+    });
+
+    return schedule;
+}
+
+function readAutoplay(fileName, nextFunction) {
+    readXmlFile(fileName, nextFunction);
+}
+
+
+function bsp_StartPlayback() {
+
+    var sign = bsp_sign;
+
+    debugger;
+
+    // kick off playback
+
+}
+
+
 $(document).ready(function () {
 
-    // member variables
-    var runSetup = false;
 
     function init() {
 
@@ -90,16 +414,6 @@ $(document).ready(function () {
         // registry variables?
     }
 
-    function newPlayerStateMachine() {
-
-        // ** PlayerStateMachine = newHSM()
-        // **   create states, handlers
-    }
-
-    function InitializePlayerStateMachine() {
-        // ** bsp.Restart("")
-    }
-
     function tmpRestart() {
         // initialize lots of variables
 
@@ -168,57 +482,7 @@ $(document).ready(function () {
 
     }
 
-    // variables
-    var _fileSystem;
-    var filesToDisplay = [];
-    var displayList = [];
-    var displayInProgress = false;
-
-    // BSP variables
-    var currentSync = null;
-    var autoSchedule = null;
-    var activePresentation = "";
-
     // code
-
-    console.log("entering bs.js");
-
-    var converter;  //xml to JSON singleton object
-
-    function XML2JSON(xml) {
-        if (!converter) {
-            converter = new X2JS();
-        }
-        return converter.xml2json(xml);
-    }
-
-    function fileSystemErrorHandler(e) {
-        var msg = '';
-
-        switch (e.code) {
-            case FileError.QUOTA_EXCEEDED_ERR:
-                msg = 'QUOTA_EXCEEDED_ERR';
-                break;
-            case FileError.NOT_FOUND_ERR:
-                msg = 'NOT_FOUND_ERR';
-                break;
-            case FileError.SECURITY_ERR:
-                msg = 'SECURITY_ERR';
-                break;
-            case FileError.INVALID_MODIFICATION_ERR:
-                msg = 'INVALID_MODIFICATION_ERR';
-                break;
-            case FileError.INVALID_STATE_ERR:
-                msg = 'INVALID_STATE_ERR';
-                break;
-            default:
-                msg = 'Unknown Error';
-                break;
-        };
-
-        console.log('Error: ' + msg);
-        console.log('fileSystemErrorHandler invoked');
-    }
 
     function onInitializeFileSystem(fileSystem) {
         _fileSystem = fileSystem;
@@ -236,6 +500,10 @@ $(document).ready(function () {
             fileSystemErrorHandler
         );
     }
+
+
+
+    console.log("entering bs.js");
 
     var startAppButton = document.querySelector('#startApp');
     $('#startApp')[0].innerHTML = "Press to begin";
@@ -263,56 +531,6 @@ $(document).ready(function () {
         }
     }
 
-    //function init2(xmlDoc) {
-    //    autoSchedule = xmlDoc;
-    //    parseSyncSpec(currentSync);
-    //}
-
-    function playerStateMachine() {
-
-        HSM.call(this); //call super constructor.
-
-        this.InitialPseudoStateHandler = InitializePlayerHSM;
-
-        this.stTop = new HState(this, "Top");
-        this.stTop.HStateEventHandler = STTopEventHandler;
-
-        this.stPlayer = new HState(this, "Player");
-        this.stPlayer.HStateEventHandler = STPlayerEventHandler
-        this.stPlayer.superState = this.stTop
-
-        this.stPlaying = new HState(this, "Playing")
-        this.stPlaying.HStateEventHandler = STPlayingEventHandler
-        this.stPlaying.superState = this.stPlayer
-        //this.stPlaying.RetrieveLiveDataFeed = RetrieveLiveDataFeed
-        //this.stPlaying.UpdateTimeClockEvents = UpdateTimeClockEvents
-
-        this.stWaiting = new HState(this, "Waiting")
-        this.stWaiting.HStateEventHandler = STWaitingEventHandler
-        this.stWaiting.superState = this.stPlayer
-
-        this.topState = this.stTop
-    }
-
-    //subclass extends superclass
-    playerStateMachine.prototype = Object.create(HSM.prototype);
-    playerStateMachine.prototype.constructor = playerStateMachine;
-
-    function STPlayerEventHandler(event, stateData) {
-        stateData.nextState = this.superState
-        return "SUPER"
-    }
-
-    function STPlayingEventHandler(event, stateData) {
-        stateData.nextState = this.superState
-        return "SUPER"
-    }
-
-    function STWaitingEventHandler(event, stateData) {
-        stateData.nextState = this.superState
-        return "SUPER"
-    }
-
     function launchRuntime() {
 
         // perform any necessary initialization
@@ -330,268 +548,8 @@ $(document).ready(function () {
         networkingHSM.Initialize();
 
         // Create player state machine
-        var playerHSM = new playerStateMachine();
-        playerHSM.Initialize();
-    }
-
-    function InitializePlayerHSM() {
-
-        console.log("InitializePlayerHSM invoked");
-
-        Restart("");
-
-        return this.stWaiting;
-    }
-
-    function readAutoSchedule(nextFunction) {
-        readXmlFile("autoschedule.xml", nextFunction);
-    }
-
-    function Restart(presentationName) {
-
-        if (presentationName == "") {
-            // read the autoschedule.xml file and parse it to get the schedule object
-            readAutoSchedule(restartWithAutoschedule);
-        }
-    }
-
-    function parseAutoSchedule(autoScheduleXml) {
-
-        var schedule = {};
-
-        var autoSchedule = autoScheduleXml.childNodes[0];
-        var scheduledPresentation = autoSchedule.children[0];
-
-        $.each(scheduledPresentation.children, function (index, scheduledPresentationChild) {
-            if (scheduledPresentationChild.localName == "presentationToSchedule") {
-                var presentationToScheduleChildren = scheduledPresentationChild.children;
-                $.each(presentationToScheduleChildren, function (index, presentationToScheduleChild) {
-                    if (presentationToScheduleChild.localName == "name") {
-                        var presentationName = presentationToScheduleChild.innerHTML;
-                        schedule.autoplayPoolFile = presentationName;
-                    }
-                });
-            }
-        });
-
-        return schedule;
-    }
-
-    function readAutoplay(fileName, nextFunction) {
-        readXmlFile(fileName, nextFunction);
-    }
-
-    function restartWithAutoschedule(xmlDoc) {
-
-        // get autoschedule, parse it to get the schedule and the active presentation
-        autoSchedule = xmlDoc;
-        var schedule = parseAutoSchedule(autoSchedule);
-        var xmlFileName = "autoplay-" + schedule.autoplayPoolFile + ".xml";
-        activePresentation = schedule.autoplayPoolFile;
-
-        if (xmlFileName != "") {
-            // retrieve the xml file associated with the active presentation and create a new sign from this specification
-            readAutoplay(xmlFileName, createNewSign);
-        }
-    }
-
-    function createNewSign(signXML) {
-
-        var signAsJSON = XML2JSON(signXML);
-        var signObj = new sign(signAsJSON);
-    }
-
-    function retrieveSyncSpec() {
-
-        console.log("retrieveSyncSpec invoked");
-
-        $.ajax({
-            url: "https://services.brightsignnetwork.com/bs/CheckForContent.ashx",
-            type: 'GET',
-            dataType: 'xml',
-            headers: {
-                "account":"ted",
-                "password":"tedpwd",
-                "group":"aws",
-                "user":"teduser",
-                "presentationName":"none",
-                "DeviceID":"L4C49T000025",
-                "DeviceModel":"XD1132",
-                "DeviceFamily":"lynx",
-                "DeviceFWVersion":"5.1.16",
-                "DeviceSWVersion":"7.1.6",
-                "CustomAutorunVersion":"7.1.0",
-                "timezone":"PST",
-                "localTime":"2014/12/09 15:35:37.936",
-                "storage-size":"7631",
-                "storage-fs":"fat32",
-                "storage-current-used":"5"
-            },
-            error: function () { debugger; },
-        })
-        .success(function (data, textStatus, jqXHR) {
-            console.log("get success");
-            console.log(textStatus);
-            writeCurrentSync($(data)[0]);
-            parseSyncSpec($(data)[0]);
-        });
-    }
-
-    function readCurrentSync(nextFunction) {
-        readXmlFile("current-sync.xml", nextFunction);
-    }
-
-    function readXmlFile(fileToRetrieve, nextFunction) {
-
-        // try to get the file from the file system
-        _fileSystem.root.getFile(fileToRetrieve, {}, function (fileEntry) {
-
-            // Get a File object representing the file, then use FileReader to read its contents.
-            fileEntry.file(function (file) {
-                var reader = new FileReader();
-
-                reader.onloadend = function (e) {   // this.result
-                    var parser = new DOMParser();
-                    var xmlDoc = parser.parseFromString(this.result, "text/xml");
-                    //init2(xmlDoc);
-                    nextFunction(xmlDoc);
-                };
-
-                reader.readAsText(file);
-
-            }, function (e) {
-                fileSystemErrorHandler(e);
-            });
-
-        }, function (e) {
-            fileSystemErrorHandler(e);
-        });
-    }
-
-
-    function writeCurrentSync(xml) {
-
-        var xmlText = new XMLSerializer().serializeToString(xml);
-
-        _fileSystem.root.getFile("current-sync.xml", { create: true }, function (fileEntry) {
-            fileEntry.createWriter(function (fileWriter) {
-
-                fileWriter.onwriteend = function (e) {
-                    console.log('Write completed: ' + "current-sync.xml");
-                };
-
-                fileWriter.onerror = function (e) {
-                    console.log('Write failed: ' + e.toString() + " on file " + fileToDownload.name);
-                };
-
-                // https://developer.mozilla.org/en-US/docs/Web/API/Blob#Blob_constructor_example_usage 
-                var aDataParts = [xmlText];
-                var blob = new Blob(aDataParts, { type: 'text/xml' });
-                fileWriter.write(blob);
-
-            }, errorHandler);
-
-        }, errorHandler);
-    }
-
-    function parseSyncSpec(syncSpec) {
-
-        var sync = syncSpec.childNodes[0]
-
-        var meta = sync.children[0];
-        var files = sync.children[1];
-
-        var client = meta.children[0];
-        var server = meta.children[1];
-
-        var downloads = files.children;
-
-        var downloadItems = [];
-
-        $.each(downloads, function (index, download) {
-
-            var downloadItem = {};
-
-            $.each(download.children, function(index, downloadChild) {
-
-                var value = downloadChild.innerHTML;
-
-                switch (downloadChild.localName) {
-                    case 'name':
-                        downloadItem.name = value;
-                        break;
-                    case 'link':
-                        downloadItem.link = value;
-                        break;
-                    case 'size':
-                        downloadItem.size = value;
-                        break;
-                    case 'hash':
-                        var method = downloadChild.attributes[0].name;
-                        if (name == "method") {
-                            if (nodeValue == "sha1") {
-                                downloadItem.sha1 = value;
-                            }
-                        }
-                        break;
-                }                    
-            });
-
-            downloadItems.push(downloadItem);
-        });
-
-        downloadFiles(downloadItems);
-    }
-
-    function downloadFiles(downloadItems) {
-
-        var filesToDownload = [];
-
-        $.each(downloadItems, function (index, downloadItem) {
-            // for now, only download specific file types (.jpg, .png, .mp4) and the following files
-            //      autoschedule.xml
-            //      autoplay-<presentation name>.xml
-            if (downloadItem.name != undefined) {
-                var fileName = downloadItem.name.toLowerCase();
-                var n = fileName.lastIndexOf(".jpg");
-                if (downloadItem.name.length == (n + 4)) {
-                    console.log("found downloadItem " + downloadItem.name);
-                    downloadItem.mimeType = "image/jpeg";
-                    filesToDownload.push(downloadItem);
-                }
-                else {
-                    n = fileName.lastIndexOf(".png");
-                    var startIndex = fileName.lastIndexOf("applicationwebserver")
-                    if (downloadItem.name.length == (n + 4) && (startIndex != 0)) {
-                        console.log("found downloadItem " + downloadItem.name);
-                        downloadItem.mimeType = "image/png";
-                        filesToDownload.push(downloadItem);
-                    }
-                    else {
-                        n = fileName.lastIndexOf(".mp4");
-                        if (downloadItem.name.length == (n + 4)) {
-                            console.log("found downloadItem " + downloadItem.name);
-                            downloadItem.mimeType = "video/mp4";
-                            filesToDownload.push(downloadItem);
-                        }
-                        else if (fileName == "autoschedule.xml") {
-                            console.log("found downloadItem " + downloadItem.name);
-                            downloadItem.mimeType = "text/xml";
-                            filesToDownload.push(downloadItem);
-                        }
-                        else if (fileName.lastIndexOf("autoplay-") == 0) {
-                            console.log("found downloadItem " + downloadItem.name);
-                            downloadItem.mimeType = "text/xml";
-                            filesToDownload.push(downloadItem);
-                        }
-                    }
-                }
-            }
-        });
-
-        //fileToDisplay = filesToDownload[0];
-        filesToDisplay = [];
-        getFiles(filesToDownload);
+        bsp_playerHSM = new playerStateMachine();
+        bsp_playerHSM.Initialize();
     }
 
     function errorHandler() {

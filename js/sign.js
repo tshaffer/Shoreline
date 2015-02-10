@@ -1,5 +1,4 @@
 ﻿function sign(signAsJSON) {
-    debugger;
 
     var BrightAuthor = signAsJSON.BrightAuthor;
 
@@ -9,13 +8,21 @@
     var signZones = this.zones;
 
     $.each(BrightAuthor.zones, function (index, zoneAsJSON) {
-        signZones.push(new zone(zoneAsJSON));
+        signZones.push(new zoneStateMachine(zoneAsJSON));
     });
 
-    debugger;
 }
 
-function zone(zoneAsJSON) {
+function zoneStateMachine(zoneAsJSON) {
+
+    HSM.call(this); //call super constructor.
+
+    //zoneHSM.InitializeVideoZoneObjects = InitializeVideoZoneObjects
+    //zoneHSM.ConstructorHandler = VideoZoneConstructor
+    //zoneHSM.InitialPseudostateHandler = VideoZoneGetInitialState
+
+    this.ConstructorHandler = VideoOrImagesZoneConstructor
+    this.InitialPseudostateHandler = VideoOrImagesZoneGetInitialState
 
     this.name = zoneAsJSON.name;
     this.x = zoneAsJSON.x;
@@ -26,6 +33,11 @@ function zone(zoneAsJSON) {
     this.id = zoneAsJSON.id;
     this.playlist = new playlist(zoneAsJSON.playlist);
 }
+
+//subclass extends superclass
+zoneStateMachine.prototype = Object.create(HSM.prototype);
+zoneStateMachine.prototype.constructor = zoneStateMachine;
+
 
 function playlist(playlistAsJSON) {
 
@@ -72,4 +84,12 @@ function transition(transitionAsJSON) {
     this.targetMediaState = transitionAsJSON.targetMediaState;
     this.assignInputToUserVariable = transitionAsJSON.assignInputToUserVariable;
     this.assignWildcardToUserVariable = transitionAsJSON.assignWildcardToUserVariable;
+}
+
+function VideoOrImagesZoneConstructor() {
+    console.log("VideoOrImagesZoneConstructor invoked");
+}
+
+function VideoOrImagesZoneGetInitialState() {
+    console.log("VideoOrImagesZoneGetInitialState invoked");
 }
