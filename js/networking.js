@@ -34,7 +34,31 @@ networkingStateMachine.prototype = Object.create(HSM.prototype);
 networkingStateMachine.prototype.constructor = networkingStateMachine;
 
 
-networkingStateMachine.prototype.STNetworkSchedulerEventHandler = function(event, stateData) {
+networkingStateMachine.prototype.InitializeNetworkingHSM = function () {
+
+    console.log("InitializeNetworkingHSM invoked");
+
+    // currentSync represents current-sync.xml 
+    this.accountName = this.LookupMetadata(currentSyncSpecAsJson, "server", "account");
+    var base = this.LookupMetadata(currentSyncSpecAsJson, "client", "base");
+    var nextURL = GetURL(base, this.LookupMetadata(currentSyncSpecAsJson, "client", "next"));
+    this.user = this.LookupMetadata(currentSyncSpecAsJson, "server", "user");
+    this.password = this.LookupMetadata(currentSyncSpecAsJson, "server", "password");
+    this.group = this.LookupMetadata(currentSyncSpecAsJson, "server", "group")
+    this.timezone = this.LookupMetadata(currentSyncSpecAsJson, "client", "timezone");
+
+    var timeBetweenNetConnects = this.LookupMetadata(currentSyncSpecAsJson, "client", "timeBetweenNetConnects");
+    this.timeBetweenNetConnects = parseInt(timeBetweenNetConnects);
+    this.currentTimeBetweenNetConnects = this.timeBetweenNetConnects;
+
+    // need to create networkTimerDownload periodic timer
+
+    return this.stRetrievingSyncList;
+
+}
+
+
+networkingStateMachine.prototype.STNetworkSchedulerEventHandler = function (event, stateData) {
 
     stateData.nextState = null;
 
@@ -60,10 +84,28 @@ networkingStateMachine.prototype.STWaitForTimeoutEventHandler = function(event, 
 
     if (event["EventType"] == "ENTRY_SIGNAL") {
         console.log(this.id + ": entry signal");
+
+        var thisState = this;
+
+        setTimeout(
+            function () {
+                var event = {};
+                event["EventType"] = "WAIT_FOR_TIMEOUT_TIMER_EXPIRED";
+                postMessage(event);
+            },
+            30000);
+
         return "HANDLED";
+            //stateData.nextState = this.stateMachine.stRetrievingSyncList;
+            //return "TRANSITION";
     }
     else if (event["EventType"] == "EXIT_SIGNAL") {
         console.log(this.id + ": exit signal");
+    }
+    else if (event["EventType"] == "WAIT_FOR_TIMEOUT_TIMER_EXPIRED") {
+        console.log(this.id + ": signal type = " + event["EventType"]);
+        stateData.nextState = this.stateMachine.stRetrievingSyncList;
+        return "TRANSITION";
     }
     else {
         console.log(this.id + ": signal type = " + event["EventType"]);
@@ -85,6 +127,10 @@ networkingStateMachine.prototype.STRetrievingSyncListEventHandler = function(eve
     }
     else if (event["EventType"] == "EXIT_SIGNAL") {
         console.log(this.id + ": exit signal");
+    }
+    else if (event["EventType"] == "SYNCSPEC_PROCESSING_COMPLETE") {
+        stateData.nextState = this.stateMachine.stWaitForTimeout;
+        return "TRANSITION";
     }
     else {
         console.log(this.id + ": signal type = " + event["EventType"]);
@@ -114,7 +160,7 @@ networkingStateMachine.prototype.StartSync = function () {
     var presentationName = "none";
 
     var thisStateMachine = this.stateMachine;
-    debugger;
+
     $.ajax({
         url: nextURL,
         type: 'GET',
@@ -143,21 +189,26 @@ networkingStateMachine.prototype.StartSync = function () {
     .success(function (data, textStatus, jqXHR) {
         console.log("status in retrieveSyncSpec: textStatus");
         // writeNewSync($(data)[0]);
-        debugger;
         newSync = $(data)[0];
-        var syncsEqual = thisStateMachine.syncSpecsEqual(currentSync, newSync);
+        newSyncSpecAsJson = XML2JSON(newSync);
+        var syncsEqual = thisStateMachine.syncSpecsEqual(currentSyncSpecAsJson, newSyncSpecAsJson);
         if (!syncsEqual) {
             // TODO - transition to a different state to download the files?
-            newSyncSpecAsJson = XML2JSON(newSync);
 
             var filesInSyncSpec = parseSyncSpecAsJSON(newSyncSpecAsJson);
             var filesToDownload = getFilesToDownload(filesInSyncSpec);
             getFiles(filesToDownload, thisStateMachine.newContentDownloaded, newSyncSpecAsJson);
         }
+        else {
+            // indicate that the sync spec processing is complete
+            var event = {};
+            event["EventType"] = "SYNCSPEC_PROCESSING_COMPLETE";
+            postMessage(event);
+        }
     });
 }
 
-networkingStateMachine.prototype.syncSpecsEqual = function (currentSync, newSync) {
+networkingStateMachine.prototype.syncSpecsEqual = function (currentSyncAsJson, newSyncAsJson) {
     return false;
 }
 
@@ -172,6 +223,10 @@ networkingStateMachine.prototype.newContentDownloaded = function () {
     // send internal message indicating that new content is available
     var event = {};
     event["EventType"] = "CONTENT_UPDATED";
+    postMessage(event);
+
+    // indicate that the sync spec processing is complete
+    event["EventType"] = "SYNCSPEC_PROCESSING_COMPLETE";
     postMessage(event);
 }
 
@@ -203,37 +258,6 @@ networkingStateMachine.prototype.STDownloadingSyncFilesEventHandler = function (
 networkingStateMachine.prototype.StartSyncListDownload = function () {
 }
 
-
-networkingStateMachine.prototype.InitializeNetworkingHSM = function () {
-
-    console.log("InitializeNetworkingHSM invoked");
-
-    // currentSync represents current-sync.xml 
-    this.accountName = this.LookupMetadata(currentSyncSpecAsJson, "server", "account");
-    var base = this.LookupMetadata(currentSyncSpecAsJson, "client", "base");
-    var nextURL = GetURL(base, this.LookupMetadata(currentSyncSpecAsJson, "client", "next"));
-    this.user = this.LookupMetadata(currentSyncSpecAsJson, "server", "user");
-    this.password = this.LookupMetadata(currentSyncSpecAsJson, "server", "password");
-    this.group = this.LookupMetadata(currentSyncSpecAsJson, "server", "group")
-
-    //if (user != "" || password != "") {
-    //    this.setUserAndPassword = true;
-    //}
-    //else {
-    //    this.setUserAndPassword = false;
-    //}
-
-    this.timezone = this.LookupMetadata(currentSyncSpecAsJson, "client", "timezone");
-
-    var timeBetweenNetConnects = this.LookupMetadata(currentSyncSpecAsJson, "client", "timeBetweenNetConnects");
-    this.timeBetweenNetConnects = parseInt(timeBetweenNetConnects);
-    this.currentTimeBetweenNetConnects = this.timeBetweenNetConnects;
-
-    // need to create networkTimerDownload periodic timer
-
-    return this.stRetrievingSyncList;
-
-}
 
 networkingStateMachine.prototype.LookupMetadata = function(syncSpec, section, field) {
 

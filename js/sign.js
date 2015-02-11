@@ -112,9 +112,14 @@ state.prototype.displayImage = function () {
 
 state.prototype.launchTimer = function () {
 
+    var dt = (new Date).toLocaleString();
+    console.log("********** launchTimer at " + dt + " for state " + this.id);
+
     var thisState = this;
-    setTimeout(
+    this.timeout = setTimeout(
         function () {
+            var dt = (new Date).toLocaleString();
+            console.log("********** received timer event at " + dt + " for state " + thisState.id);
             var event = {};
             event["EventType"] = "timeoutEvent";
             postMessage(event);
@@ -186,19 +191,13 @@ function imageItem(imageItemAsJSON) {
 
     var thisImageItem = this;
 
-    console.log("imageItem - look for match to get blob");
-
     // HACK find the blob data in the sync spec
     $.each(currentSyncSpecAsJson.sync.files.download, function (index, downloadItem) {
         if (downloadItem.name == thisImageItem.fileName) {
             thisImageItem.blob = downloadItem.blob;
             thisImageItem.blobURL = downloadItem.blobURL;
-            console.log("imageItem - found match to get blob");
         }
     });
-
-    console.log("imageItem - exit");
-
 }
 
 
@@ -259,6 +258,10 @@ function VideoOrImagesZoneGetInitialState() {
 
 STDisplayingImageEventHandler = function (event, stateData) {
 
+    //var isTheOne = false;
+    //if (this.state.lastIndexOf("GrandTeton") == 0) {
+    //    isTheOne = true;
+    //}
     stateData.nextState = null;
 
     var eventType = event["EventType"];
@@ -277,6 +280,8 @@ STDisplayingImageEventHandler = function (event, stateData) {
         deregisterStateMachine(this.stateMachine);
         console.log(this.id + ": CONTENT_UPDATED received - mark state invalid");
         this.active = false;
+        console.log(this.id + ": clearTimeout");
+        clearTimeout(this.timeout);
     }
     else if (eventType != "EMPTY_SIGNAL" && eventType != "INIT_SIGNAL") {
         console.log(this.id + ": received event " + event["EventType"]);
@@ -314,6 +319,8 @@ STVideoPlayingEventHandler = function (event, stateData) {
         deregisterStateMachine(this.stateMachine);
         console.log(this.id + ": CONTENT_UPDATED received - mark state invalid");
         this.active = false;
+        console.log(this.id + ": pause video");
+        $('#videoZone')[0].pause();
     }
     else if (eventType == "mediaEndEvent") {
         console.log(this.id + ": mediaEndEvent signal");
@@ -326,13 +333,6 @@ STVideoPlayingEventHandler = function (event, stateData) {
             return "HANDLED";
         }
     }
-
-
-    //    //else if (event["EventType"] == "") {
-    //else if (eventType != "EMPTY_SIGNAL" && eventType != "INIT_SIGNAL") {
-    //    console.log(this.id + ": received event " + event["EventType"]);
-    //    return this.mediaItemEventHandler(event, stateData);
-    //}
 
     stateData.nextState = this.superState;
     return "SUPER"
@@ -352,6 +352,7 @@ state.prototype.launchVideo = function () {
     var thisState = this;
 
     $("#videoZone").on("ended", function (e) {
+        console.log("--------------------------------------------------------------------- video ended");
         var event = {};
         event["EventType"] = "mediaEndEvent";
         postMessage(event);

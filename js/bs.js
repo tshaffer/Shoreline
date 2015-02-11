@@ -251,6 +251,8 @@ function parseSyncSpecAsJSON(syncSpec) {
 
 function displayItem(index) {
 
+    debugger;
+
     if (displayList[index].mimeType == "video/mp4") {
         $('#imageZone').hide();
         $('#videoZone').show();
