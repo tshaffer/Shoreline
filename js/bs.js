@@ -10,6 +10,7 @@ var displayInProgress = false;
 // BSP variables
 var currentSync = null;
 var currentSyncAsJson = null;
+var newSync = null;
 var autoSchedule = null;
 var activePresentation = "";
 var bsp_sign = null;
@@ -126,7 +127,8 @@ function retrieveSyncSpec() {
         console.log("get success");
         console.log(textStatus);
         writeCurrentSync($(data)[0]);
-        var filesInSyncSpec = parseSyncSpec($(data)[0]);
+        var syncSpecAsJson = XML2JSON($(data)[0]);
+        var filesInSyncSpec = parseSyncSpecAsJSON($(data)[0]);
         var filesToDownload = getFilesToDownload(filesInSyncSpec);
         filesToDisplay = [];
         getFiles(filesToDownload, displayContent);
@@ -150,7 +152,6 @@ function readXmlFile(fileToRetrieve, nextFunction) {
             reader.onloadend = function (e) {   // this.result
                 var parser = new DOMParser();
                 var xmlDoc = parser.parseFromString(this.result, "text/xml");
-                //init2(xmlDoc);
                 nextFunction(xmlDoc);
             };
 
@@ -196,48 +197,17 @@ function writeCurrentSync(xml) {
     }, errorHandler);
 }
 
-function parseSyncSpec(syncSpec) {
-
-    var sync = syncSpec.childNodes[0]
-
-    var meta = sync.children[0];
-    var files = sync.children[1];
-
-    var client = meta.children[0];
-    var server = meta.children[1];
-
-    var filesInSyncSpecXML = files.children;
+function parseSyncSpecAsJSON(syncSpec) {
 
     var filesInSyncSpec = [];
 
-    $.each(filesInSyncSpecXML, function (index, download) {
+    $.each(syncSpec.sync.files.download, function (index, downloadItem) {
 
         var fileInSyncSpec = {};
-
-        $.each(download.children, function (index, downloadChild) {
-
-            var value = downloadChild.innerHTML;
-
-            switch (downloadChild.localName) {
-                case 'name':
-                    fileInSyncSpec.name = value;
-                    break;
-                case 'link':
-                    fileInSyncSpec.link = value;
-                    break;
-                case 'size':
-                    fileInSyncSpec.size = value;
-                    break;
-                case 'hash':
-                    var method = downloadChild.attributes[0].name;
-                    if (name == "method") {
-                        if (nodeValue == "sha1") {
-                            fileInSyncSpec.sha1 = value;
-                        }
-                    }
-                    break;
-            }
-        });
+        fileInSyncSpec.name = downloadItem.name;
+        fileInSyncSpec.link = downloadItem.link;
+        fileInSyncSpec.size = downloadItem.size;
+        fileInSyncSpec.sha1 = downloadItem.hash.__text;
 
         filesInSyncSpec.push(fileInSyncSpec);
     });
@@ -284,6 +254,9 @@ function displayItem(index) {
 }
 
 function displayContent() {
+
+    debugger;
+
     var index = 0;
 
     //Returns format of: filesystem:chrome-extension://nlipipdnicabdffnohdhhliiajoonmgm/persistent/xxxxxxxxxxxx.png
@@ -330,7 +303,6 @@ function getFiles(filesToRetrieve, nextFunction) {
         readFile(fileToRetrieve, filesToRetrieve, nextFunction);
     }
     else {
-        //displayContent();
         if (nextFunction != null) {
             nextFunction();
         }
@@ -338,6 +310,11 @@ function getFiles(filesToRetrieve, nextFunction) {
 }
 
 function readFile(fileToRetrieve, filesToRetrieve, functionToCallAfterAllFilesGot) {
+
+    if (fileToRetrieve.name == "autoschedule.xml") {
+        downloadFile(fileToRetrieve, filesToRetrieve, functionToCallAfterAllFilesGot);
+        return;
+    }
 
     // check to see if this file already exists in the file system
     _fileSystem.root.getFile(fileToRetrieve.name, {}, function (fileEntry) {
@@ -352,7 +329,10 @@ function readFile(fileToRetrieve, filesToRetrieve, functionToCallAfterAllFilesGo
                 fileToRetrieve.blob = new Blob([byteArray], { type: fileToRetrieve.mimeType });
                 fileToRetrieve.blobURL = window.URL.createObjectURL(fileToRetrieve.blob);
 
+                console.log("file " + fileToRetrieve.name + " successfully read.");
+
                 filesToDisplay.push(fileToRetrieve);
+
                 getFiles(filesToRetrieve, functionToCallAfterAllFilesGot);
             };
 
@@ -360,16 +340,16 @@ function readFile(fileToRetrieve, filesToRetrieve, functionToCallAfterAllFilesGo
 
         }, function (e) {
             fileSystemErrorHandler(e);
-            downloadFile(fileToRetrieve, filesToRetrieve);
+            downloadFile(fileToRetrieve, filesToRetrieve, functionToCallAfterAllFilesGot);
         });
 
     }, function (e) {
         fileSystemErrorHandler(e);
-        downloadFile(fileToRetrieve, filesToRetrieve);
+        downloadFile(fileToRetrieve, filesToRetrieve, functionToCallAfterAllFilesGot);
     });
 }
 
-function downloadFile(fileToDownload, filesToRetrieve) {
+function downloadFile(fileToDownload, filesToRetrieve, functionToCallAfterAllFilesGot) {
 
     // file does not exist; download it and write it once it is downloaded
 
@@ -392,7 +372,7 @@ function downloadFile(fileToDownload, filesToRetrieve) {
                     fileWriter.onwriteend = function (e) {
                         console.log('Write completed: ' + fileToDownload.name);
                         filesToDisplay.push(fileToDownload);
-                        getFiles(filesToRetrieve, displayContent);
+                        getFiles(filesToRetrieve, functionToCallAfterAllFilesGot);
                     };
 
                     fileWriter.onerror = function (e) {
@@ -575,7 +555,7 @@ $(document).ready(function () {
         currentSync = xmlDoc;
         currentSyncSpecAsJson = XML2JSON(currentSync);
 
-        var filesInSyncSpec = parseSyncSpec(currentSync);
+        var filesInSyncSpec = parseSyncSpecAsJSON(currentSyncSpecAsJson);
         var filesToDownload = getFilesToDownload(filesInSyncSpec);
         filesToDisplay = [];
         getFiles(filesToDownload, launchRuntime2);

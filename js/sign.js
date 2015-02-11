@@ -90,6 +90,10 @@ function state(zone, stateAsJSON) {
         this.imageItem = new imageItem(stateAsJSON.imageItem);
         this.HStateEventHandler = STDisplayingImageEventHandler;
     }
+    else if (typeof stateAsJSON.videoItem == "object") {
+        this.videoItem = new videoItem(stateAsJSON.videoItem);
+        this.HStateEventHandler = STVideoPlayingEventHandler;
+    }
 
     this.superState = this.stateMachine.stTop;
 }
@@ -190,6 +194,11 @@ function imageItem(imageItemAsJSON) {
     });
 }
 
+function videoItem(videoItemAsJSON) {
+    this.fileName = videoItemAsJSON.file._name;
+}
+
+
 function transition(transitionAsJSON, stateTable) {
 
     this.sourceMediaStateName = transitionAsJSON.sourceMediaState;
@@ -249,5 +258,30 @@ STDisplayingImageEventHandler = function (event, stateData) {
     stateData.nextState = this.superState;
     return "SUPER"
 }
+
+
+STVideoPlayingEventHandler = function (event, stateData) {
+
+    stateData.nextState = null;
+
+    var eventType = event["EventType"];
+
+    if (eventType == "ENTRY_SIGNAL") {
+        console.log(this.id + ": entry signal");
+        return "HANDLED";
+    }
+    else if (eventType == "EXIT_SIGNAL") {
+        console.log(this.id + ": exit signal");
+    }
+    //    //else if (event["EventType"] == "") {
+    //else if (eventType != "EMPTY_SIGNAL" && eventType != "INIT_SIGNAL") {
+    //    console.log(this.id + ": received event " + event["EventType"]);
+    //    return this.mediaItemEventHandler(event, stateData);
+    //}
+
+    stateData.nextState = this.superState;
+    return "SUPER"
+}
+
 
 

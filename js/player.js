@@ -43,6 +43,14 @@ playerStateMachine.prototype.STPlayerEventHandler = function (event, stateData) 
     else if (event["EventType"] == "EXIT_SIGNAL") {
         console.log(this.id + ": exit signal");
     }
+    else if (event["EventType"] == "CONTENT_UPDATED") {
+        console.log(this.id + ": CONTENT_UPDATED");
+
+        Restart("");
+
+        // need to wait for the sign object to be completely read in before going into the playing state
+        return this.stWaitingForSign;
+    }
 
     stateData.nextState = this.superState
     return "SUPER"

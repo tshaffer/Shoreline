@@ -113,6 +113,8 @@ networkingStateMachine.prototype.StartSync = function () {
     // TODO - temporary
     var presentationName = "none";
 
+    var thisStateMachine = this.stateMachine;
+    debugger;
     $.ajax({
         url: nextURL,
         type: 'GET',
@@ -130,6 +132,7 @@ networkingStateMachine.prototype.StartSync = function () {
             "DeviceSWVersion": "7.1.6",
             "CustomAutorunVersion": "7.1.0",
             "timezone": this.stateMachine.timezone,
+            // TODO - retrieve this and format it properly
             "localTime": "2014/12/09 15:35:37.936",
             "storage-size": "7631",
             "storage-fs": "fat32",
@@ -138,11 +141,43 @@ networkingStateMachine.prototype.StartSync = function () {
         error: function () { debugger; },
     })
     .success(function (data, textStatus, jqXHR) {
-        debugger;
+        console.log("status in retrieveSyncSpec: textStatus");
+        // writeNewSync($(data)[0]);
+        newSync = $(data)[0];
+        var syncsEqual = thisStateMachine.syncSpecsEqual(currentSync, newSync);
+        if (!syncsEqual) {
+            // TODO - transition to a different state to download the files?
+            newSyncSpecAsJson = XML2JSON(newSync);
+
+            var filesInSyncSpec = parseSyncSpecAsJSON(newSyncSpecAsJson);
+            var filesToDownload = getFilesToDownload(filesInSyncSpec);
+            filesToDisplay = [];
+            getFiles(filesToDownload, thisStateMachine.newContentDownloaded);
+        }
     });
 }
 
-networkingStateMachine.prototype.SyncSpecXferEvent = function() {
+networkingStateMachine.prototype.syncSpecsEqual = function (currentSync, newSync) {
+    return false;
+}
+
+
+networkingStateMachine.prototype.newContentDownloaded = function () {
+
+    currentSync = newSync;
+    currentSyncSpecAsJson = XML2JSON(currentSync);
+    writeCurrentSync(currentSync);
+
+    // send internal message to prepare for restart
+    // send internal message indicating that new content is available
+    // TODO HACK
+    var event = {};
+    event["EventType"] = "CONTENT_UPDATED";
+    bsp_playerHSM.Dispatch(event);
+}
+
+
+networkingStateMachine.prototype.SyncSpecXferEvent = function () {
 }
 
 
