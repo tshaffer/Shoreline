@@ -9,7 +9,7 @@ var displayInProgress = false;
 
 // BSP variables
 var currentSync = null;
-var currentSyncAsJson = null;
+var currentSyncSpecAsJson = null;
 var newSync = null;
 var autoSchedule = null;
 var activePresentation = "";
@@ -85,9 +85,13 @@ function restartWithAutoschedule(xmlDoc) {
 
 function createNewSign(signXML) {
 
+    console.log("createNewSign invoked");
+
     var signAsJSON = XML2JSON(signXML);
     var signObj = new sign(signAsJSON);
     bsp_sign = signObj;
+
+    console.log("createNewSign completed");
 
     // TODO
     var event = {};
@@ -130,8 +134,9 @@ function retrieveSyncSpec() {
         var syncSpecAsJson = XML2JSON($(data)[0]);
         var filesInSyncSpec = parseSyncSpecAsJSON($(data)[0]);
         var filesToDownload = getFilesToDownload(filesInSyncSpec);
+        console.log("clear filesToDisplay");
         filesToDisplay = [];
-        getFiles(filesToDownload, displayContent);
+        getFiles(filesToDownload, displayContent, syncSpecAsJson);
 
     });
 }
@@ -259,24 +264,6 @@ function displayContent() {
 
     var index = 0;
 
-    //Returns format of: filesystem:chrome-extension://nlipipdnicabdffnohdhhliiajoonmgm/persistent/xxxxxxxxxxxx.png
-    //<img src="filesystem:chrome-extension://nlipipdnicabdffnohdhhliiajoonmgm/persistent/xxxxxxxxxxxx.png">
-
-    //var url = "filesystem:chrome-extension://colflmholehgbhkebgghaopnobppmcoe_0/persistent/" + filesToDisplay[index];
-    //var url = "chrome-extension://colflmholehgbhkebgghaopnobppmcoe_0/persistent/" + filesToDisplay[index];
-    //var url = "chrome-extension://colflmholehgbhkebgghaopnobppmcoe/persistent/" + filesToDisplay[index];
-    //var url = "chrome-extension://colflmholehgbhkebgghaopnobppmcoe/" + filesToDisplay[index];
-    //$("#imageInZone").attr('src', url);
-
-    //$("#imageZone").attr('src', filesToDisplay[index].blobURL);
-
-    //var index = 1;
-    //if (index >= filesToDisplay.length) {
-    //    index = 0;
-    //}
-
-    //var url = "./" + filesToDisplay[index].blobURL;
-
     setTimeout(
         function () {
             console.log("time to check for a new sync spec");
@@ -297,10 +284,10 @@ function displayContent() {
 }
 
 
-function getFiles(filesToRetrieve, nextFunction) {
+function getFiles(filesToRetrieve, nextFunction, syncSpecAsJson) {
     if (filesToRetrieve.length > 0) {
         var fileToRetrieve = filesToRetrieve.shift();
-        readFile(fileToRetrieve, filesToRetrieve, nextFunction);
+        readFile(fileToRetrieve, filesToRetrieve, nextFunction, syncSpecAsJson);
     }
     else {
         if (nextFunction != null) {
@@ -309,10 +296,10 @@ function getFiles(filesToRetrieve, nextFunction) {
     }
 }
 
-function readFile(fileToRetrieve, filesToRetrieve, functionToCallAfterAllFilesGot) {
+function readFile(fileToRetrieve, filesToRetrieve, functionToCallAfterAllFilesGot, syncSpecAsJson) {
 
     if (fileToRetrieve.name == "autoschedule.xml") {
-        downloadFile(fileToRetrieve, filesToRetrieve, functionToCallAfterAllFilesGot);
+        downloadFile(fileToRetrieve, filesToRetrieve, functionToCallAfterAllFilesGot, syncSpecAsJson);
         return;
     }
 
@@ -332,24 +319,37 @@ function readFile(fileToRetrieve, filesToRetrieve, functionToCallAfterAllFilesGo
                 console.log("file " + fileToRetrieve.name + " successfully read.");
 
                 filesToDisplay.push(fileToRetrieve);
-
-                getFiles(filesToRetrieve, functionToCallAfterAllFilesGot);
+                saveBlobInfo(syncSpecAsJson, fileToRetrieve);
+                getFiles(filesToRetrieve, functionToCallAfterAllFilesGot, syncSpecAsJson);
             };
 
             reader.readAsArrayBuffer(file);
 
         }, function (e) {
             fileSystemErrorHandler(e);
-            downloadFile(fileToRetrieve, filesToRetrieve, functionToCallAfterAllFilesGot);
+            downloadFile(fileToRetrieve, filesToRetrieve, functionToCallAfterAllFilesGot, syncSpecAsJson);
         });
 
     }, function (e) {
         fileSystemErrorHandler(e);
-        downloadFile(fileToRetrieve, filesToRetrieve, functionToCallAfterAllFilesGot);
+        downloadFile(fileToRetrieve, filesToRetrieve, functionToCallAfterAllFilesGot, syncSpecAsJson);
     });
 }
 
-function downloadFile(fileToDownload, filesToRetrieve, functionToCallAfterAllFilesGot) {
+
+// TODO HACK
+function saveBlobInfo(syncSpecAsJson, file) {
+
+    $.each(syncSpecAsJson.sync.files.download, function (index, downloadItem) {
+        if (downloadItem.name == file.name) {
+            downloadItem.blob = file.blob;
+            downloadItem.blobURL = file.blobURL;
+        }
+    });
+}
+
+
+function downloadFile(fileToDownload, filesToRetrieve, functionToCallAfterAllFilesGot, syncSpecAsJson) {
 
     // file does not exist; download it and write it once it is downloaded
 
@@ -372,7 +372,8 @@ function downloadFile(fileToDownload, filesToRetrieve, functionToCallAfterAllFil
                     fileWriter.onwriteend = function (e) {
                         console.log('Write completed: ' + fileToDownload.name);
                         filesToDisplay.push(fileToDownload);
-                        getFiles(filesToRetrieve, functionToCallAfterAllFilesGot);
+                        saveBlobInfo(syncSpecAsJson, fileToDownload);
+                        getFiles(filesToRetrieve, functionToCallAfterAllFilesGot, syncSpecAsJson);
                     };
 
                     fileWriter.onerror = function (e) {
@@ -557,11 +558,12 @@ $(document).ready(function () {
 
         var filesInSyncSpec = parseSyncSpecAsJSON(currentSyncSpecAsJson);
         var filesToDownload = getFilesToDownload(filesInSyncSpec);
-        filesToDisplay = [];
-        getFiles(filesToDownload, launchRuntime2);
+        getFiles(filesToDownload, launchRuntime2, currentSyncSpecAsJson);
     }
 
     function launchRuntime2() {
+
+        debugger;
 
         //  create networking state machine and initialize it
         var networkingHSM = new networkingStateMachine();

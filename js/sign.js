@@ -103,10 +103,9 @@ state.prototype = Object.create(HState.prototype);
 state.prototype.constructor = state;
 
 state.prototype.displayImage = function () {
-
     $('#videoZone').hide();
     $('#imageZone').show();
-    $("#imageZone").attr('src', this.imageItem.fileToDisplay.blobURL);
+    $("#imageZone").attr('src', this.imageItem.blobURL);
 }
 
 state.prototype.launchTimer = function () {
@@ -186,25 +185,33 @@ function imageItem(imageItemAsJSON) {
 
     var thisImageItem = this;
 
-    // find the display item in memory
-    $.each(filesToDisplay, function (index, fileToDisplay) {
-        if (thisImageItem.fileName == fileToDisplay.name) {
-            thisImageItem.fileToDisplay = fileToDisplay;
+    console.log("imageItem: look for fileToDisplay match");
+
+    // HACK find the blob data in the sync spec
+    $.each(currentSyncSpecAsJson.sync.files.download, function (index, downloadItem) {
+        if (downloadItem.name == thisImageItem.fileName) {
+            thisImageItem.blob = downloadItem.blob;
+            thisImageItem.blobURL = downloadItem.blobURL;
         }
     });
+
+    console.log("imageItem: exit");
+
 }
 
 
 function videoItem(videoItemAsJSON) {
+
     this.fileName = videoItemAsJSON.file._name;
     this.automaticallyLoop = videoItemAsJSON.automaticallyLoop;
 
     var thisVideoItem = this;
 
-    // find the display item in memory
-    $.each(filesToDisplay, function (index, fileToDisplay) {
-        if (thisVideoItem.fileName == fileToDisplay.name) {
-            thisVideoItem.fileToDisplay = fileToDisplay;
+    // HACK find the blob data in the sync spec
+    $.each(currentSyncSpecAsJson.sync.files.download, function (index, downloadItem) {
+        if (downloadItem.name == thisVideoItem.fileName) {
+            thisVideoItem.blob = downloadItem.blob;
+            thisVideoItem.blobURL = downloadItem.blobURL;
         }
     });
 }
@@ -311,7 +318,7 @@ state.prototype.launchVideo = function () {
     $('#videoZone').show();
     // the URL below (this.videoItem.fileToDisplay.blobURL) works in browser
     // blob:chrome-extension%3A//flolljmnbhomhldolemkccahigofcfoo/362d0026-2df3-49cb-907e-5453760925ed
-    $("#videoZone").attr('src', this.videoItem.fileToDisplay.blobURL);
+    $("#videoZone").attr('src', this.videoItem.blobURL);
     $('#videoZone')[0].load();
     $('#videoZone')[0].play();
 

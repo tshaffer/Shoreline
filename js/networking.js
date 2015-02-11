@@ -97,6 +97,8 @@ networkingStateMachine.prototype.STRetrievingSyncListEventHandler = function(eve
 
 networkingStateMachine.prototype.StartSync = function () {
 
+    return;
+
     console.log("### start_sync")
 
     // TODO - need a way to determine whether or not a sync spec download is in progress or not
@@ -151,8 +153,7 @@ networkingStateMachine.prototype.StartSync = function () {
 
             var filesInSyncSpec = parseSyncSpecAsJSON(newSyncSpecAsJson);
             var filesToDownload = getFilesToDownload(filesInSyncSpec);
-            filesToDisplay = [];
-            getFiles(filesToDownload, thisStateMachine.newContentDownloaded);
+            getFiles(filesToDownload, thisStateMachine.newContentDownloaded, newSyncSpecAsJson);
         }
     });
 }
