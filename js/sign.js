@@ -194,8 +194,19 @@ function imageItem(imageItemAsJSON) {
     });
 }
 
+
 function videoItem(videoItemAsJSON) {
     this.fileName = videoItemAsJSON.file._name;
+    this.automaticallyLoop = videoItemAsJSON.automaticallyLoop;
+
+    var thisVideoItem = this;
+
+    // find the display item in memory
+    $.each(filesToDisplay, function (index, fileToDisplay) {
+        if (thisVideoItem.fileName == fileToDisplay.name) {
+            thisVideoItem.fileToDisplay = fileToDisplay;
+        }
+    });
 }
 
 
@@ -214,6 +225,9 @@ function transition(transitionAsJSON, stateTable) {
     if (this.userEventName == "timeout") {
         bsState.timeoutValue = transitionAsJSON.userEvent.parameters.parameter;
         bsState.timeoutEvent = this;
+    }
+    else if (this.userEventName == "mediaEnd") {
+        bsState.mediaEndEvent = this;
     }
 }
 
@@ -267,12 +281,19 @@ STVideoPlayingEventHandler = function (event, stateData) {
     var eventType = event["EventType"];
 
     if (eventType == "ENTRY_SIGNAL") {
+        this.launchVideo();
         console.log(this.id + ": entry signal");
         return "HANDLED";
     }
     else if (eventType == "EXIT_SIGNAL") {
         console.log(this.id + ": exit signal");
     }
+    else if (eventType == "mediaEndEvent") {
+        console.log(this.id + ": mediaEndEvent signal");
+        return this.executeTransition(this.mediaEndEvent, stateData, "");
+    }
+
+
     //    //else if (event["EventType"] == "") {
     //else if (eventType != "EMPTY_SIGNAL" && eventType != "INIT_SIGNAL") {
     //    console.log(this.id + ": received event " + event["EventType"]);
@@ -282,6 +303,28 @@ STVideoPlayingEventHandler = function (event, stateData) {
     stateData.nextState = this.superState;
     return "SUPER"
 }
+
+
+state.prototype.launchVideo = function () {
+
+    $('#imageZone').hide();
+    $('#videoZone').show();
+    // the URL below (this.videoItem.fileToDisplay.blobURL) works in browser
+    // blob:chrome-extension%3A//flolljmnbhomhldolemkccahigofcfoo/362d0026-2df3-49cb-907e-5453760925ed
+    $("#videoZone").attr('src', this.videoItem.fileToDisplay.blobURL);
+    $('#videoZone')[0].load();
+    $('#videoZone')[0].play();
+
+    var thisState = this;
+
+    $("#videoZone").on("ended", function (e) {
+        // TODO HACK
+        var event = {};
+        event["EventType"] = "mediaEndEvent";
+        thisState.stateMachine.Dispatch(event);
+    });
+}
+
 
 
 
