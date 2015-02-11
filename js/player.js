@@ -51,6 +51,9 @@ playerStateMachine.prototype.STPlayerEventHandler = function (event, stateData) 
         // need to wait for the sign object to be completely read in before going into the playing state
         return this.stWaitingForSign;
     }
+    else {
+        console.log(this.id + ": event received - " + event["EventType"]);
+    }
 
     stateData.nextState = this.superState
     return "SUPER"
@@ -71,6 +74,10 @@ playerStateMachine.prototype.STPlayingEventHandler = function (event, stateData)
     }
     else if (event["EventType"] == "EXIT_SIGNAL") {
         console.log(this.id + ": exit signal");
+    }
+    else if (event["EventType"] == "signReadCompleted") {
+        bsp_StartPlayback();
+        return "HANDLED";
     }
 
     stateData.nextState = this.superState

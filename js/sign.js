@@ -8,7 +8,9 @@
     var signZones = this.zones;
 
     $.each(BrightAuthor.zones, function (index, zoneAsJSON) {
-        signZones.push(new zoneStateMachine(zoneAsJSON));
+        var hsm = new zoneStateMachine(zoneAsJSON);
+        registerStateMachine(hsm);
+        signZones.push(hsm);
     });
 
 }
@@ -113,10 +115,9 @@ state.prototype.launchTimer = function () {
     var thisState = this;
     setTimeout(
         function () {
-            // TODO HACK
             var event = {};
             event["EventType"] = "timeoutEvent";
-            thisState.stateMachine.Dispatch(event);
+            postMessage(event);
         },
         parseInt(this.timeoutValue) * 1000);
 }
@@ -185,17 +186,18 @@ function imageItem(imageItemAsJSON) {
 
     var thisImageItem = this;
 
-    console.log("imageItem: look for fileToDisplay match");
+    console.log("imageItem - look for match to get blob");
 
     // HACK find the blob data in the sync spec
     $.each(currentSyncSpecAsJson.sync.files.download, function (index, downloadItem) {
         if (downloadItem.name == thisImageItem.fileName) {
             thisImageItem.blob = downloadItem.blob;
             thisImageItem.blobURL = downloadItem.blobURL;
+            console.log("imageItem - found match to get blob");
         }
     });
 
-    console.log("imageItem: exit");
+    console.log("imageItem - exit");
 
 }
 
@@ -263,6 +265,7 @@ STDisplayingImageEventHandler = function (event, stateData) {
 
     if (eventType == "ENTRY_SIGNAL") {
         console.log(this.id + ": entry signal");
+        this.active = true;
         this.displayImage();
         this.launchTimer();
         return "HANDLED";
@@ -270,10 +273,21 @@ STDisplayingImageEventHandler = function (event, stateData) {
     else if (eventType == "EXIT_SIGNAL") {
         console.log(this.id + ": exit signal");
     }
-        //else if (event["EventType"] == "") {
+    else if (event["EventType"] == "CONTENT_UPDATED") {
+        deregisterStateMachine(this.stateMachine);
+        console.log(this.id + ": CONTENT_UPDATED received - mark state invalid");
+        this.active = false;
+    }
     else if (eventType != "EMPTY_SIGNAL" && eventType != "INIT_SIGNAL") {
         console.log(this.id + ": received event " + event["EventType"]);
-        return this.mediaItemEventHandler(event, stateData);
+        if (this.active) {
+            console.log(this.id + ": state is active - invoke mediaItemEventHandler");
+            return this.mediaItemEventHandler(event, stateData);
+        }
+        else {
+            console.log(this.id + ": state is inactive - don't invoke mediaItemEventHandler");
+            return "HANDLED";
+        }
     }
 
     stateData.nextState = this.superState;
@@ -288,16 +302,29 @@ STVideoPlayingEventHandler = function (event, stateData) {
     var eventType = event["EventType"];
 
     if (eventType == "ENTRY_SIGNAL") {
-        this.launchVideo();
         console.log(this.id + ": entry signal");
+        this.active = true;
+        this.launchVideo();
         return "HANDLED";
     }
     else if (eventType == "EXIT_SIGNAL") {
         console.log(this.id + ": exit signal");
     }
+    else if (event["EventType"] == "CONTENT_UPDATED") {
+        deregisterStateMachine(this.stateMachine);
+        console.log(this.id + ": CONTENT_UPDATED received - mark state invalid");
+        this.active = false;
+    }
     else if (eventType == "mediaEndEvent") {
         console.log(this.id + ": mediaEndEvent signal");
-        return this.executeTransition(this.mediaEndEvent, stateData, "");
+        if (this.active) {
+            console.log(this.id + ": state is active - invoke executeTransition");
+            return this.executeTransition(this.mediaEndEvent, stateData, "");
+        }
+        else {
+            console.log(this.id + ": state is inactive - don't invoke executeTransition");
+            return "HANDLED";
+        }
     }
 
 
@@ -325,10 +352,9 @@ state.prototype.launchVideo = function () {
     var thisState = this;
 
     $("#videoZone").on("ended", function (e) {
-        // TODO HACK
         var event = {};
         event["EventType"] = "mediaEndEvent";
-        thisState.stateMachine.Dispatch(event);
+        postMessage(event);
     });
 }
 

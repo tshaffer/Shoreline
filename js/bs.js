@@ -16,8 +16,37 @@ var activePresentation = "";
 var bsp_sign = null;
 var bsp_playerHSM = null;
 
+var registeredStateMachines = [];
+
 //xml to JSON singleton object
 var converter;  
+
+function registerStateMachine(hsm) {
+    registeredStateMachines.push(hsm);
+}
+
+
+function deregisterStateMachine(hsmToDeregister) {
+ 
+    var hsmIndex = -1;
+    $.each(registeredStateMachines, function (index, hsm) {
+        if (typeof hsm.id != "undefined" && hsm.id == hsmToDeregister.id) {
+            hsmIndex = index;
+        }
+    });
+
+    if (hsmIndex >= 0) {
+        registeredStateMachines.splice(hsmIndex, 1);
+    }
+}
+
+
+function postMessage(event) {
+    $.each(registeredStateMachines, function (index, hsm) {
+        hsm.Dispatch(event);
+    });
+}
+    
 
 function XML2JSON(xml) {
     if (!converter) {
@@ -93,10 +122,9 @@ function createNewSign(signXML) {
 
     console.log("createNewSign completed");
 
-    // TODO
     var event = {};
     event["EventType"] = "signReadCompleted";
-    bsp_playerHSM.Dispatch(event);
+    postMessage(event);
 }
 
 function retrieveSyncSpec() {
@@ -567,10 +595,12 @@ $(document).ready(function () {
 
         //  create networking state machine and initialize it
         var networkingHSM = new networkingStateMachine();
+        registerStateMachine(networkingHSM);
         networkingHSM.Initialize();
 
         // Create player state machine
         bsp_playerHSM = new playerStateMachine();
+        registerStateMachine(bsp_playerHSM);
         bsp_playerHSM.Initialize();
     }
 

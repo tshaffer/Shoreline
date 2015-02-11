@@ -97,8 +97,6 @@ networkingStateMachine.prototype.STRetrievingSyncListEventHandler = function(eve
 
 networkingStateMachine.prototype.StartSync = function () {
 
-    return;
-
     console.log("### start_sync")
 
     // TODO - need a way to determine whether or not a sync spec download is in progress or not
@@ -145,6 +143,7 @@ networkingStateMachine.prototype.StartSync = function () {
     .success(function (data, textStatus, jqXHR) {
         console.log("status in retrieveSyncSpec: textStatus");
         // writeNewSync($(data)[0]);
+        debugger;
         newSync = $(data)[0];
         var syncsEqual = thisStateMachine.syncSpecsEqual(currentSync, newSync);
         if (!syncsEqual) {
@@ -166,15 +165,14 @@ networkingStateMachine.prototype.syncSpecsEqual = function (currentSync, newSync
 networkingStateMachine.prototype.newContentDownloaded = function () {
 
     currentSync = newSync;
-    currentSyncSpecAsJson = XML2JSON(currentSync);
+    currentSyncSpecAsJson = newSyncSpecAsJson;
     writeCurrentSync(currentSync);
 
     // send internal message to prepare for restart
     // send internal message indicating that new content is available
-    // TODO HACK
     var event = {};
     event["EventType"] = "CONTENT_UPDATED";
-    bsp_playerHSM.Dispatch(event);
+    postMessage(event);
 }
 
 
