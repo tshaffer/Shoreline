@@ -265,6 +265,7 @@ function html5Item(html5ItemAsJSON) {
     var thisHTML5Item = this;
 
     //var fullHtml5FilePath = thisHTML5Item.prefix + thisHTML5Item.filePath;
+    // TODO - hack because I created my test presentation incorrectly - I included an iFrame inside of my html. Instead, I just need html - it will become the iFrame.
     var fullHtml5FilePath = thisHTML5Item.prefix + "testpage.html";
 
     // HACK find the blob data in the sync spec

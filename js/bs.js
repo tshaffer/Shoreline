@@ -131,6 +131,7 @@ function createNewSign(signXML) {
 
     // TODO - HACK - generalize somehow?
     // fix json
+
     if (signAsJSON.BrightAuthor.meta.htmlSites.constructor != Array) {
         var htmlSite = signAsJSON.BrightAuthor.meta.htmlSites;
         signAsJSON.BrightAuthor.meta.htmlSites = [];
@@ -478,7 +479,13 @@ function saveBlobInfo(syncSpecAsJson, file) {
 
 
 function getFileNameFromPath(path) {
-    return path.replace(/^.*[\\\/]/, '');
+    var fileName = path.replace(/^.*[\\\/]/, '');
+
+    // TODO - test hack
+    if (fileName.indexOf("iFrame-") == 0) {
+        fileName = fileName.substring(7);
+    }
+    return fileName;
 }
 
 
@@ -499,7 +506,6 @@ function downloadFile(fileToDownload, filesToRetrieve, functionToCallAfterAllFil
             fileToDownload.blob = new Blob([byteArray], { type: fileToDownload.mimeType });
             fileToDownload.blobURL = window.URL.createObjectURL(fileToDownload.blob);
 
-            if (endsWith(fileToDownload.name, ".eot")) debugger;
             var fileName = getFileNameFromPath(fileToDownload.name);
             console.log("invoke getFile with " + fileName);
 
