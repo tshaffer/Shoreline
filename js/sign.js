@@ -96,10 +96,12 @@ function playlist(zone, playlistAsJSON) {
 // get the transitions for the playlist
     this.transitions = [];
 
-    transitions = this.transitions;
-    $.each(playlistAsJSON.states.transition, function (index, transitionAsJSON) {
-        transitions.push(new transition(transitionAsJSON, zone.stateTable));
-    });
+    if (playlistAsJSON.states.transition != undefined) {
+        transitions = this.transitions;
+        $.each(playlistAsJSON.states.transition, function (index, transitionAsJSON) {
+            transitions.push(new transition(transitionAsJSON, zone.stateTable));
+        });
+    }
 }
 
 function state(zone, stateAsJSON) {
@@ -259,6 +261,20 @@ function html5Item(html5ItemAsJSON) {
     else {
         this.url = htmlSite.url;
     }
+
+    var thisHTML5Item = this;
+
+    //var fullHtml5FilePath = thisHTML5Item.prefix + thisHTML5Item.filePath;
+    var fullHtml5FilePath = thisHTML5Item.prefix + "testpage.html";
+
+    // HACK find the blob data in the sync spec
+    $.each(currentSyncSpecAsJson.sync.files.download, function (index, downloadItem) {
+        if (downloadItem.name == fullHtml5FilePath) {
+            thisHTML5Item.blob = downloadItem.blob;
+            thisHTML5Item.blobURL = downloadItem.blobURL;
+        }
+    });
+
 }
 
 function transition(transitionAsJSON, stateTable) {
@@ -386,6 +402,7 @@ STHTML5PlayingEventHandler = function (event, stateData) {
 
     if (eventType == "ENTRY_SIGNAL") {
         console.log(this.id + ": entry signal");
+        this.showIFrame();
         return "HANDLED";
     }
     else if (eventType == "EXIT_SIGNAL") {
@@ -400,6 +417,14 @@ STHTML5PlayingEventHandler = function (event, stateData) {
 
     stateData.nextState = this.superState;
     return "SUPER";
+}
+
+
+state.prototype.showIFrame = function () {
+    $('#imageZone').hide();
+    $('#videoZone').hide();
+    $("#iframeZone").attr('src', this.html5Item.blobURL);
+    $('#iframeZone').show();
 }
 
 
