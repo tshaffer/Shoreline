@@ -51,8 +51,6 @@ networkingStateMachine.prototype.InitializeNetworkingHSM = function () {
     this.timeBetweenNetConnects = parseInt(timeBetweenNetConnects);
     this.currentTimeBetweenNetConnects = this.timeBetweenNetConnects;
 
-    // need to create networkTimerDownload periodic timer
-
     return this.stRetrievingSyncList;
 
 }
@@ -96,8 +94,6 @@ networkingStateMachine.prototype.STWaitForTimeoutEventHandler = function(event, 
             30000);
 
         return "HANDLED";
-            //stateData.nextState = this.stateMachine.stRetrievingSyncList;
-            //return "TRANSITION";
     }
     else if (event["EventType"] == "EXIT_SIGNAL") {
         console.log(this.id + ": exit signal");
@@ -216,10 +212,13 @@ networkingStateMachine.prototype.syncSpecsEqual = function (currentSyncAsJson, n
 networkingStateMachine.prototype.newContentDownloaded = function () {
 
     currentSync = newSync;
-    currentSyncSpecAsJson = newSyncSpecAsJson;
     writeCurrentSync(currentSync);
 
-    // send internal message to prepare for restart
+    currentSyncSpecAsJson = newSyncSpecAsJson;
+    writeCurrentSyncAsJson(currentSyncSpecAsJson);
+
+    // send internal message to prepare for restart - needed?
+
     // send internal message indicating that new content is available
     var event = {};
     event["EventType"] = "CONTENT_UPDATED";

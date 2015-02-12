@@ -129,6 +129,8 @@ function createNewSign(signXML) {
 
 function retrieveSyncSpec() {
 
+    debugger;
+
     console.log("retrieveSyncSpec invoked");
 
     $.ajax({
@@ -158,7 +160,7 @@ function retrieveSyncSpec() {
     .success(function (data, textStatus, jqXHR) {
         console.log("get success");
         console.log(textStatus);
-        writeCurrentSync($(data)[0]);
+        //writeCurrentSync($(data)[0]);
         var syncSpecAsJson = XML2JSON($(data)[0]);
         var filesInSyncSpec = parseSyncSpecAsJSON($(data)[0]);
         var filesToDownload = getFilesToDownload(filesInSyncSpec);
@@ -169,9 +171,39 @@ function retrieveSyncSpec() {
     });
 }
 
+
+function readCurrentSyncAsJson(nextFunction) {
+
+    var fileToRetrieve = "current-sync.json";
+
+    // try to get the file from the file system
+    _fileSystem.root.getFile(fileToRetrieve, {}, function (fileEntry) {
+
+        // Get a File object representing the file, then use FileReader to read its contents.
+        fileEntry.file(function (file) {
+            var reader = new FileReader();
+
+            reader.onloadend = function (e) {   // this.result
+                currentSyncSpecAsJson = JSON.parse(this.result);
+                nextFunction();
+            };
+
+            reader.readAsText(file);
+
+        }, function (e) {
+            fileSystemErrorHandler(e);
+        });
+
+    }, function (e) {
+        fileSystemErrorHandler(e);
+    });
+}
+
+
 function readCurrentSync(nextFunction) {
     readXmlFile("current-sync.xml", nextFunction);
 }
+
 
 function readXmlFile(fileToRetrieve, nextFunction) {
 
@@ -228,6 +260,33 @@ function writeCurrentSync(xml) {
         }, errorHandler);
 
     }, errorHandler);
+}
+
+
+function writeCurrentSyncAsJson(syncSpecAsJson) {
+
+    var syncSpecAsStr = JSON.stringify(syncSpecAsJson);
+
+    _fileSystem.root.getFile("current-sync.json", { create: true }, function (fileEntry) {
+        fileEntry.createWriter(function (fileWriter) {
+
+            fileWriter.onwriteend = function (e) {
+                console.log('Write completed: ' + "current-sync.json");
+            };
+
+            fileWriter.onerror = function (e) {
+                console.log('Write failed: ' + e.toString() + " on file " + "current - sync.json");
+            };
+
+            // https://developer.mozilla.org/en-US/docs/Web/API/Blob#Blob_constructor_example_usage 
+            var aDataParts = [syncSpecAsStr];
+            var blob = new Blob(aDataParts, { type: 'text/json' });
+            fileWriter.write(blob);
+
+        }, errorHandler);
+
+    }, errorHandler);
+
 }
 
 function parseSyncSpecAsJSON(syncSpec) {
@@ -574,8 +633,6 @@ $(document).ready(function () {
     }
 
     function launchRuntime0() {
-
-        // perform any necessary initialization
 
         // get current sync (only support networking currently)
         readCurrentSync(launchRuntime1);
