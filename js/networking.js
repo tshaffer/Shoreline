@@ -183,7 +183,7 @@ networkingStateMachine.prototype.StartSync = function () {
         error: function () { debugger; },
     })
     .success(function (data, textStatus, jqXHR) {
-        console.log("status in retrieveSyncSpec: textStatus");
+        console.log("### Received new sync list, textStatus = " + textStatus);
         // writeNewSync($(data)[0]);
         newSync = $(data)[0];
         newSyncSpecAsJson = XML2JSON(newSync);
@@ -191,6 +191,7 @@ networkingStateMachine.prototype.StartSync = function () {
         if (!syncsEqual) {
             // TODO - transition to a different state to download the files?
 
+            debugger;
             var filesInSyncSpec = parseSyncSpecAsJSON(newSyncSpecAsJson);
             var filesToDownload = getFilesToDownload(filesInSyncSpec);
             getFiles(filesToDownload, thisStateMachine.newContentDownloaded, newSyncSpecAsJson);

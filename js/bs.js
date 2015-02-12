@@ -15,11 +15,30 @@ var autoSchedule = null;
 var activePresentation = "";
 var bsp_sign = null;
 var bsp_playerHSM = null;
+var bsp_htmlSites = null;
 
 var registeredStateMachines = [];
 
 //xml to JSON singleton object
 var converter;  
+
+
+function XML2JSON(xml) {
+
+    // attempt to use xml2json from the web
+    //http://goessner.net/download/prj/jsonxml/
+    // didn't work for sync specs
+
+    //var jsonStr = xml2json(xml);
+    //var json = JSON.parse(jsonStr);
+    //return json;
+
+    if (!converter) {
+        converter = new X2JS();
+    }
+    return converter.xml2json(xml);
+}
+
 
 function registerStateMachine(hsm) {
     registeredStateMachines.push(hsm);
@@ -47,14 +66,6 @@ function postMessage(event) {
     });
 }
     
-
-function XML2JSON(xml) {
-    if (!converter) {
-        converter = new X2JS();
-    }
-    return converter.xml2json(xml);
-}
-
 
 function fileSystemErrorHandler(e) {
     var msg = '';
@@ -117,6 +128,21 @@ function createNewSign(signXML) {
     console.log("createNewSign invoked");
 
     var signAsJSON = XML2JSON(signXML);
+
+    // TODO - HACK - generalize somehow?
+    // fix json
+    if (signAsJSON.BrightAuthor.meta.htmlSites.constructor != Array) {
+        var htmlSite = signAsJSON.BrightAuthor.meta.htmlSites;
+        signAsJSON.BrightAuthor.meta.htmlSites = [];
+        signAsJSON.BrightAuthor.meta.htmlSites.push(htmlSite);
+    }
+
+    if (signAsJSON.BrightAuthor.zones.zone.playlist.states.state.constructor != Array) {
+        var state = signAsJSON.BrightAuthor.zones.zone.playlist.states.state;
+        signAsJSON.BrightAuthor.zones.zone.playlist.states.state = [];
+        signAsJSON.BrightAuthor.zones.zone.playlist.states.state.push(state);
+    }
+
     var signObj = new sign(signAsJSON);
     bsp_sign = signObj;
 
@@ -233,6 +259,16 @@ function readXmlFile(fileToRetrieve, nextFunction) {
 
 
 function errorHandler() {
+    debugger;
+}
+
+
+function getFileErrorHandler(e) {
+    debugger;
+}
+
+
+function createWriterErrorHandler() {
     debugger;
 }
 
@@ -387,13 +423,16 @@ function getFiles(filesToRetrieve, nextFunction, syncSpecAsJson) {
 
 function readFile(fileToRetrieve, filesToRetrieve, functionToCallAfterAllFilesGot, syncSpecAsJson) {
 
-    if (fileToRetrieve.name == "autoschedule.xml") {
+    var fileName = getFileNameFromPath(fileToRetrieve.name);
+
+    // TODO explicitly download this at the moment since there is no way to check SHA1 values yet to see if the file has changed.
+    if (fileName == "autoschedule.xml") {
         downloadFile(fileToRetrieve, filesToRetrieve, functionToCallAfterAllFilesGot, syncSpecAsJson);
         return;
     }
 
     // check to see if this file already exists in the file system
-    _fileSystem.root.getFile(fileToRetrieve.name, {}, function (fileEntry) {
+    _fileSystem.root.getFile(fileName, {}, function (fileEntry) {
 
         // Get a File object representing the file,
         // then use FileReader to read its contents.
@@ -405,7 +444,7 @@ function readFile(fileToRetrieve, filesToRetrieve, functionToCallAfterAllFilesGo
                 fileToRetrieve.blob = new Blob([byteArray], { type: fileToRetrieve.mimeType });
                 fileToRetrieve.blobURL = window.URL.createObjectURL(fileToRetrieve.blob);
 
-                console.log("file " + fileToRetrieve.name + " successfully read.");
+                console.log("file " + fileName + " successfully read.");
 
                 filesToDisplay.push(fileToRetrieve);
                 saveBlobInfo(syncSpecAsJson, fileToRetrieve);
@@ -438,6 +477,11 @@ function saveBlobInfo(syncSpecAsJson, file) {
 }
 
 
+function getFileNameFromPath(path) {
+    return path.replace(/^.*[\\\/]/, '');
+}
+
+
 function downloadFile(fileToDownload, filesToRetrieve, functionToCallAfterAllFilesGot, syncSpecAsJson) {
 
     // file does not exist; download it and write it once it is downloaded
@@ -455,25 +499,29 @@ function downloadFile(fileToDownload, filesToRetrieve, functionToCallAfterAllFil
             fileToDownload.blob = new Blob([byteArray], { type: fileToDownload.mimeType });
             fileToDownload.blobURL = window.URL.createObjectURL(fileToDownload.blob);
 
-            _fileSystem.root.getFile(fileToDownload.name, { create: true }, function (fileEntry) {
+            if (endsWith(fileToDownload.name, ".eot")) debugger;
+            var fileName = getFileNameFromPath(fileToDownload.name);
+            console.log("invoke getFile with " + fileName);
+
+            _fileSystem.root.getFile(fileName, { create: true }, function (fileEntry) {
                 fileEntry.createWriter(function (fileWriter) {
 
                     fileWriter.onwriteend = function (e) {
-                        console.log('Write completed: ' + fileToDownload.name);
+                        console.log('Write completed: ' + fileName);
                         filesToDisplay.push(fileToDownload);
                         saveBlobInfo(syncSpecAsJson, fileToDownload);
                         getFiles(filesToRetrieve, functionToCallAfterAllFilesGot, syncSpecAsJson);
                     };
 
                     fileWriter.onerror = function (e) {
-                        console.log('Write failed: ' + e.toString() + " on file " + fileToDownload.name);
+                        console.log('Write failed: ' + e.toString() + " on file " + fileName);
                     };
 
                     fileWriter.write(fileToDownload.blob);
 
-                }, errorHandler);
+                }, createWriterErrorHandler);
 
-            }, errorHandler);
+            }, getFileErrorHandler);
         }
     };
 
@@ -481,51 +529,75 @@ function downloadFile(fileToDownload, filesToRetrieve, functionToCallAfterAllFil
 }
 
 
+function endsWith(str, suffix) {
+    return str.indexOf(suffix, str.length - suffix.length) !== -1;
+}
+
+
+function getMimeType(fileName) {
+
+    if (endsWith(fileName, ".jpg")) return "image/jpeg";
+    if (endsWith(fileName, ".png")) return "image/png";
+    if (endsWith(fileName, ".mp4")) return "video/mp4";
+    if (endsWith(fileName, ".xml")) return "text/xml";
+    if (endsWith(fileName, ".bpf")) return "text/xml";
+    if (endsWith(fileName, ".html")) return "text/html";
+    return "text/plain";
+}
+
 function getFilesToDownload(downloadItems) {
 
     var filesToDownload = [];
 
     $.each(downloadItems, function (index, downloadItem) {
-        // for now, only download specific file types (.jpg, .png, .mp4) and the following files
-        //      autoschedule.xml
-        //      autoplay-<presentation name>.xml
         if (downloadItem.name != undefined) {
             var fileName = downloadItem.name.toLowerCase();
-            var n = fileName.lastIndexOf(".jpg");
-            if (downloadItem.name.length == (n + 4)) {
-                console.log("found downloadItem " + downloadItem.name);
-                downloadItem.mimeType = "image/jpeg";
-                filesToDownload.push(downloadItem);
-            }
-            else {
-                n = fileName.lastIndexOf(".png");
-                var startIndex = fileName.lastIndexOf("applicationwebserver")
-                if (downloadItem.name.length == (n + 4) && (startIndex != 0)) {
-                    console.log("found downloadItem " + downloadItem.name);
-                    downloadItem.mimeType = "image/png";
-                    filesToDownload.push(downloadItem);
-                }
-                else {
-                    n = fileName.lastIndexOf(".mp4");
-                    if (downloadItem.name.length == (n + 4)) {
-                        console.log("found downloadItem " + downloadItem.name);
-                        downloadItem.mimeType = "video/mp4";
-                        filesToDownload.push(downloadItem);
-                    }
-                    else if (fileName == "autoschedule.xml") {
-                        console.log("found downloadItem " + downloadItem.name);
-                        downloadItem.mimeType = "text/xml";
-                        filesToDownload.push(downloadItem);
-                    }
-                    else if (fileName.lastIndexOf("autoplay-") == 0) {
-                        console.log("found downloadItem " + downloadItem.name);
-                        downloadItem.mimeType = "text/xml";
-                        filesToDownload.push(downloadItem);
-                    }
-                }
-            }
+            downloadItem.mimeType = getMimeType(fileName);
+            filesToDownload.push(downloadItem);
         }
     });
+
+    //$.each(downloadItems, function (index, downloadItem) {
+    //    // for now, only download specific file types (.jpg, .png, .mp4) and the following files
+    //    //      autoschedule.xml
+    //    //      autoplay-<presentation name>.xml
+    //    if (downloadItem.name != undefined) {
+    //        var fileName = downloadItem.name.toLowerCase();
+    //        var n = fileName.lastIndexOf(".jpg");
+    //        if (downloadItem.name.length == (n + 4)) {
+    //            console.log("found downloadItem " + downloadItem.name);
+    //            downloadItem.mimeType = "image/jpeg";
+    //            filesToDownload.push(downloadItem);
+    //        }
+    //        else {
+    //            n = fileName.lastIndexOf(".png");
+    //            var startIndex = fileName.lastIndexOf("applicationwebserver")
+    //            if (downloadItem.name.length == (n + 4) && (startIndex != 0)) {
+    //                console.log("found downloadItem " + downloadItem.name);
+    //                downloadItem.mimeType = "image/png";
+    //                filesToDownload.push(downloadItem);
+    //            }
+    //            else {
+    //                n = fileName.lastIndexOf(".mp4");
+    //                if (downloadItem.name.length == (n + 4)) {
+    //                    console.log("found downloadItem " + downloadItem.name);
+    //                    downloadItem.mimeType = "video/mp4";
+    //                    filesToDownload.push(downloadItem);
+    //                }
+    //                else if (fileName == "autoschedule.xml") {
+    //                    console.log("found downloadItem " + downloadItem.name);
+    //                    downloadItem.mimeType = "text/xml";
+    //                    filesToDownload.push(downloadItem);
+    //                }
+    //                else if (fileName.lastIndexOf("autoplay-") == 0) {
+    //                    console.log("found downloadItem " + downloadItem.name);
+    //                    downloadItem.mimeType = "text/xml";
+    //                    filesToDownload.push(downloadItem);
+    //                }
+    //            }
+    //        }
+    //    }
+    //});
 
     return filesToDownload;
 }
@@ -535,23 +607,14 @@ function parseAutoSchedule(autoScheduleXml) {
 
     var schedule = {};
 
-    var autoSchedule = autoScheduleXml.childNodes[0];
-    var scheduledPresentation = autoSchedule.children[0];
+    var autoScheduleAsJson = XML2JSON(autoScheduleXml);
 
-    $.each(scheduledPresentation.children, function (index, scheduledPresentationChild) {
-        if (scheduledPresentationChild.localName == "presentationToSchedule") {
-            var presentationToScheduleChildren = scheduledPresentationChild.children;
-            $.each(presentationToScheduleChildren, function (index, presentationToScheduleChild) {
-                if (presentationToScheduleChild.localName == "name") {
-                    var presentationName = presentationToScheduleChild.innerHTML;
-                    schedule.autoplayPoolFile = presentationName;
-                }
-            });
-        }
-    });
+    var presentationName = autoScheduleAsJson.autoschedule.scheduledPresentation.presentationToSchedule.name
+    schedule.autoplayPoolFile = presentationName;
 
     return schedule;
 }
+
 
 function readAutoplay(fileName, nextFunction) {
     readXmlFile(fileName, nextFunction);

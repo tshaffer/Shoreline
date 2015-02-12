@@ -1,6 +1,27 @@
 ﻿function sign(signAsJSON) {
 
     var BrightAuthor = signAsJSON.BrightAuthor;
+    var meta = BrightAuthor.meta;
+
+    // get html sites
+    bsp_htmlSites = {};
+    $.each(meta.htmlSites, function (index, htmlSiteAsJson) {
+        
+        var htmlSite = {};
+
+        if (typeof htmlSiteAsJson.localHTMLSite == "object") {
+            htmlSite.name = htmlSiteAsJson.localHTMLSite.name;
+            htmlSite.prefix = htmlSiteAsJson.localHTMLSite.prefix;
+            htmlSite.filePath = htmlSiteAsJson.localHTMLSite.filePath;
+            htmlSite.contentIsLocal = true;
+        }
+        else {
+            // remote html site
+            debugger;
+        }
+
+        bsp_htmlSites[htmlSite.name] = htmlSite;
+    });
 
     // capture and check attributes
 
@@ -55,6 +76,7 @@ function playlist(zone, playlistAsJSON) {
     this.initialState = playlistAsJSON.states.initialState;
     zone.stateTable = {};
     var zoneStateTable = zone.stateTable;
+
     $.each(playlistAsJSON.states.state, function (index, stateAsJSON) {
         var newState = new state(zone, stateAsJSON);
         zoneStateTable[newState.id] = newState;
@@ -95,6 +117,10 @@ function state(zone, stateAsJSON) {
     else if (typeof stateAsJSON.videoItem == "object") {
         this.videoItem = new videoItem(stateAsJSON.videoItem);
         this.HStateEventHandler = STVideoPlayingEventHandler;
+    }
+    else if (typeof stateAsJSON.html5Item == "object") {
+        this.html5Item = new html5Item(stateAsJSON.html5Item);
+        this.HStateEventHandler = STHTML5PlayingEventHandler;
     }
 
     this.superState = this.stateMachine.stTop;
@@ -218,6 +244,23 @@ function videoItem(videoItemAsJSON) {
 }
 
 
+function html5Item(html5ItemAsJSON) {
+
+    this.htmlSiteName = html5ItemAsJSON.htmlSiteName;
+
+    // get the associated html site
+    var htmlSite = bsp_htmlSites[this.htmlSiteName];
+
+    this.contentIsLocal = htmlSite.contentIsLocal;
+    if (this.contentIsLocal) {
+        this.prefix = htmlSite.prefix;
+        this.filePath = htmlSite.filePath;
+    }
+    else {
+        this.url = htmlSite.url;
+    }
+}
+
 function transition(transitionAsJSON, stateTable) {
 
     this.sourceMediaStateName = transitionAsJSON.sourceMediaState;
@@ -332,6 +375,31 @@ STVideoPlayingEventHandler = function (event, stateData) {
 
     stateData.nextState = this.superState;
     return "SUPER"
+}
+
+
+STHTML5PlayingEventHandler = function (event, stateData) {
+
+    stateData.nextState = null;
+
+    var eventType = event["EventType"];
+
+    if (eventType == "ENTRY_SIGNAL") {
+        console.log(this.id + ": entry signal");
+        return "HANDLED";
+    }
+    else if (eventType == "EXIT_SIGNAL") {
+        console.log(this.id + ": exit signal");
+    }
+    else if (event["EventType"] == "CONTENT_UPDATED") {
+        deregisterStateMachine(this.stateMachine);
+        console.log(this.id + ": CONTENT_UPDATED received - mark state invalid");
+        this.active = false;
+        console.log(this.id + ": pause video");
+    }
+
+    stateData.nextState = this.superState;
+    return "SUPER";
 }
 
 
