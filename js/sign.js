@@ -258,10 +258,6 @@ function VideoOrImagesZoneGetInitialState() {
 
 STDisplayingImageEventHandler = function (event, stateData) {
 
-    //var isTheOne = false;
-    //if (this.state.lastIndexOf("GrandTeton") == 0) {
-    //    isTheOne = true;
-    //}
     stateData.nextState = null;
 
     var eventType = event["EventType"];
