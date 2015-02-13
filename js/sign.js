@@ -142,11 +142,6 @@ function state(zone, stateAsJSON) {
 state.prototype = Object.create(HState.prototype);
 state.prototype.constructor = state;
 
-state.prototype.displayImage = function () {
-    $('#videoZone').hide();
-    $('#imageZone').show();
-    $("#imageZone").attr('src', this.imageItem.blobURL);
-}
 
 state.prototype.launchTimer = function () {
 
@@ -433,30 +428,18 @@ STHTML5PlayingEventHandler = function (event, stateData) {
 }
 
 
-state.prototype.showIFrame = function () {
-    $('#imageZone').hide();
+state.prototype.displayImage = function () {
     $('#videoZone').hide();
-    $("#iframeZone").attr('src', this.html5Item.blobURL);
-    $('#iframeZone').show();
-}
-
-
-state.prototype.showWebView = function () {
-    $('#imageZone').hide();
-    $('#videoZone').hide();
-    if (this.html5Item.contentIsLocal) {
-        $("#webViewZone").attr('src', this.html5Item.blobURL);
-    }
-    else {
-        $("#webViewZone").attr('src', this.html5Item.url);
-    }
-    $('#webViewZone').show();
+    $('#webViewZone').hide();
+    $('#imageZone').show();
+    $("#imageZone").attr('src', this.imageItem.blobURL);
 }
 
 
 state.prototype.launchVideo = function () {
 
     $('#imageZone').hide();
+    $('#webViewZone').hide();
     $('#videoZone').show();
     // the URL below (this.videoItem.fileToDisplay.blobURL) works in browser
     // blob:chrome-extension%3A//flolljmnbhomhldolemkccahigofcfoo/362d0026-2df3-49cb-907e-5453760925ed
@@ -473,6 +456,28 @@ state.prototype.launchVideo = function () {
         postMessage(event);
     });
 }
+
+
+state.prototype.showWebView = function () {
+    $('#imageZone').hide();
+    $('#videoZone').hide();
+    if (this.html5Item.contentIsLocal) {
+        $("#webViewZone").attr('src', this.html5Item.blobURL);
+    }
+    else {
+        $("#webViewZone").attr('src', this.html5Item.url);
+    }
+    $('#webViewZone').show();
+}
+
+
+state.prototype.showIFrame = function () {
+    $('#imageZone').hide();
+    $('#videoZone').hide();
+    $("#iframeZone").attr('src', this.html5Item.blobURL);
+    $('#iframeZone').show();
+}
+
 
 
 
