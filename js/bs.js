@@ -319,7 +319,6 @@ function writeCurrentSync(xml) {
 
 function writeCurrentSyncAsJson(syncSpecAsJson) {
 
-    debugger;
     var syncSpecAsStr = JSON.stringify(syncSpecAsJson);
 
     _fileSystem.root.getFile("current-sync.json", { create: true }, function (fileEntry) {
@@ -807,7 +806,7 @@ $(document).ready(function () {
 
     function launchRuntime2() {
 
-        debugger;
+        //debugger;
 
         //  create networking state machine and initialize it
         var networkingHSM = new networkingStateMachine();

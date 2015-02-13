@@ -191,7 +191,6 @@ networkingStateMachine.prototype.StartSync = function () {
         if (!syncsEqual) {
             // TODO - transition to a different state to download the files?
 
-            //debugger;
             var filesInSyncSpec = parseSyncSpecAsJSON(newSyncSpecAsJson);
             var filesToDownload = getFilesToDownload(filesInSyncSpec);
             getFiles(filesToDownload, thisStateMachine.newContentDownloaded, newSyncSpecAsJson);
@@ -205,9 +204,61 @@ networkingStateMachine.prototype.StartSync = function () {
     });
 }
 
+
 networkingStateMachine.prototype.syncSpecsEqual = function (currentSyncAsJson, newSyncAsJson) {
-    return false;
+
+    // check files in sync specs
+    if (currentSyncAsJson.sync.files.download.length != newSyncAsJson.sync.files.download.length) return false;
+
+    // assume that if the sync specs are the same, the order of the files is the same
+    var thisStateMachine = this;
+    $.each(currentSyncAsJson.sync.files.download, function (index, currentDownloadItem) {
+        var newDownloadItem = newSyncAsJson.sync.files.download[index];
+        if (!thisStateMachine.downloadItemsEqual(currentDownloadItem, newDownloadItem)) return false;
+    });
+
+    // check meta sections (server, client)
+    if (!this.metaSectionsEqual(currentSyncAsJson.sync.meta.server, newSyncAsJson.sync.meta.server)) return false;
+    if (!this.metaSectionsEqual(currentSyncAsJson.sync.meta.client, newSyncAsJson.sync.meta.client)) return false;
+
+    return true;
 }
+
+
+// TODO - do I need to check any additional fields?
+networkingStateMachine.prototype.downloadItemsEqual = function (currentDownloadItem, newDownloadItem) {
+    if ( (currentDownloadItem.hash.__text != newDownloadItem.hash.__text) ||
+         (currentDownloadItem.link != newDownloadItem.link) ||
+         (currentDownloadItem.name != newDownloadItem.name) ||
+         (currentDownloadItem.size != newDownloadItem.size) ) return false;
+    
+         return true;
+}
+
+
+networkingStateMachine.prototype.metaSectionsEqual = function (currentMeta, newMeta) {
+
+    if (this.metaSectionSize(currentMeta) != this.metaSectionSize(newMeta)) return false;
+
+    var keys = [];
+    for (var key in currentMeta) {
+        if (currentMeta.hasOwnProperty(key)) {
+            if (!(key in newMeta)) return false;
+        }
+    }
+
+    return true;
+}
+
+
+networkingStateMachine.prototype.metaSectionSize = function (meta) {
+
+    var size = 0, key;
+    for (key in meta) {
+        if (meta.hasOwnProperty(key)) size++;
+    }
+    return size;
+};
 
 
 networkingStateMachine.prototype.newContentDownloaded = function () {
