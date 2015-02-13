@@ -191,7 +191,7 @@ networkingStateMachine.prototype.StartSync = function () {
         if (!syncsEqual) {
             // TODO - transition to a different state to download the files?
 
-            debugger;
+            //debugger;
             var filesInSyncSpec = parseSyncSpecAsJSON(newSyncSpecAsJson);
             var filesToDownload = getFilesToDownload(filesInSyncSpec);
             getFiles(filesToDownload, thisStateMachine.newContentDownloaded, newSyncSpecAsJson);
