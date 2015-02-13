@@ -506,6 +506,8 @@ function downloadFile(fileToDownload, filesToRetrieve, functionToCallAfterAllFil
     // also, possibly http://stackoverflow.com/questions/19178276/chrome-app-persistent-filesystem-storage-not-reliable
     var oReq = new XMLHttpRequest();
     oReq.open("GET", fileToDownload.link, true);
+
+    // https://developer.chrome.com/apps/app_external - doesn't use arrayBuffer
     oReq.responseType = "arraybuffer";
 
     oReq.onload = function (oEvent) {

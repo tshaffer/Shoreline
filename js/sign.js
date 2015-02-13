@@ -21,8 +21,6 @@
         });
     }
 
-    debugger;
-
     // capture and check attributes
 
     this.zones = [];
@@ -252,8 +250,6 @@ function html5Item(html5ItemAsJSON) {
 
     // get the associated html site
     var htmlSite = bsp_htmlSites[this.htmlSiteName];
-
-    debugger;
 
     this.contentIsLocal = htmlSite.contentIsLocal;
     if (this.contentIsLocal) {
