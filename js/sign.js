@@ -3,25 +3,25 @@
     var BrightAuthor = signAsJSON.BrightAuthor;
     var meta = BrightAuthor.meta;
 
+    // TODO - only looking at local html sites
     // get html sites
     bsp_htmlSites = {};
-    $.each(meta.htmlSites, function (index, htmlSiteAsJson) {
-        
-        var htmlSite = {};
 
-        if (typeof htmlSiteAsJson.localHTMLSite == "object") {
-            htmlSite.name = htmlSiteAsJson.localHTMLSite.name;
-            htmlSite.prefix = htmlSiteAsJson.localHTMLSite.prefix;
-            htmlSite.filePath = htmlSiteAsJson.localHTMLSite.filePath;
+    if (typeof meta.htmlSites.localHTMLSite == "object") {
+        $.each(meta.htmlSites.localHTMLSite, function (index, localHTMLSite) {
+
+            var htmlSite = {};
+
+            htmlSite.name = localHTMLSite.name;
+            htmlSite.prefix = localHTMLSite.prefix;
+            htmlSite.filePath = localHTMLSite.filePath;
             htmlSite.contentIsLocal = true;
-        }
-        else {
-            // remote html site
-            debugger;
-        }
 
-        bsp_htmlSites[htmlSite.name] = htmlSite;
-    });
+            bsp_htmlSites[htmlSite.name] = htmlSite;
+        });
+    }
+
+    debugger;
 
     // capture and check attributes
 
@@ -253,8 +253,11 @@ function html5Item(html5ItemAsJSON) {
     // get the associated html site
     var htmlSite = bsp_htmlSites[this.htmlSiteName];
 
+    debugger;
+
     this.contentIsLocal = htmlSite.contentIsLocal;
     if (this.contentIsLocal) {
+        this.name = htmlSite.name;
         this.prefix = htmlSite.prefix;
         this.filePath = htmlSite.filePath;
     }
@@ -264,9 +267,9 @@ function html5Item(html5ItemAsJSON) {
 
     var thisHTML5Item = this;
 
-    //var fullHtml5FilePath = thisHTML5Item.prefix + thisHTML5Item.filePath;
+    var fullHtml5FilePath = thisHTML5Item.prefix + thisHTML5Item.filePath;
     // TODO - hack because I created my test presentation incorrectly - I included an iFrame inside of my html. Instead, I just need html - it will become the iFrame.
-    var fullHtml5FilePath = thisHTML5Item.prefix + "testpage.html";
+    //var fullHtml5FilePath = thisHTML5Item.prefix + "testpage.html";
 
     // HACK find the blob data in the sync spec
     $.each(currentSyncSpecAsJson.sync.files.download, function (index, downloadItem) {

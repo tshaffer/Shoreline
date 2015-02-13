@@ -132,10 +132,13 @@ function createNewSign(signXML) {
     // TODO - HACK - generalize somehow?
     // fix json
 
-    if (signAsJSON.BrightAuthor.meta.htmlSites.constructor != Array) {
-        var htmlSite = signAsJSON.BrightAuthor.meta.htmlSites;
-        signAsJSON.BrightAuthor.meta.htmlSites = [];
-        signAsJSON.BrightAuthor.meta.htmlSites.push(htmlSite);
+    if (signAsJSON.BrightAuthor.meta.htmlSites.localHTMLSite.constructor != Array) {
+
+        if ((typeof signAsJSON.BrightAuthor.meta.htmlSites.localHTMLSite) == "object") {
+            var localHTMLSite = signAsJSON.BrightAuthor.meta.htmlSites.localHTMLSite;
+            signAsJSON.BrightAuthor.meta.htmlSites.localHTMLSite = [];
+            signAsJSON.BrightAuthor.meta.htmlSites.localHTMLSite.push(localHTMLSite);
+        }
     }
 
     if (signAsJSON.BrightAuthor.zones.zone.playlist.states.state.constructor != Array) {
@@ -426,6 +429,12 @@ function readFile(fileToRetrieve, filesToRetrieve, functionToCallAfterAllFilesGo
 
     var fileName = getFileNameFromPath(fileToRetrieve.name);
 
+    // test download
+    if (fileName == "GrandTetonWyoming.jpg") {
+        downloadFile(fileToRetrieve, filesToRetrieve, functionToCallAfterAllFilesGot, syncSpecAsJson);
+        return;
+    }
+
     // TODO explicitly download this at the moment since there is no way to check SHA1 values yet to see if the file has changed.
     if (fileName == "autoschedule.xml") {
         downloadFile(fileToRetrieve, filesToRetrieve, functionToCallAfterAllFilesGot, syncSpecAsJson);
@@ -494,6 +503,7 @@ function downloadFile(fileToDownload, filesToRetrieve, functionToCallAfterAllFil
     // file does not exist; download it and write it once it is downloaded
 
     // see http://www.html5rocks.com/en/tutorials/file/xhr2/ for a way to avoid arraybuffer
+    // also, possibly http://stackoverflow.com/questions/19178276/chrome-app-persistent-filesystem-storage-not-reliable
     var oReq = new XMLHttpRequest();
     oReq.open("GET", fileToDownload.link, true);
     oReq.responseType = "arraybuffer";
@@ -510,6 +520,7 @@ function downloadFile(fileToDownload, filesToRetrieve, functionToCallAfterAllFil
             console.log("invoke getFile with " + fileName);
 
             _fileSystem.root.getFile(fileName, { create: true }, function (fileEntry) {
+                thisFileEntry = fileEntry;
                 fileEntry.createWriter(function (fileWriter) {
 
                     fileWriter.onwriteend = function (e) {
