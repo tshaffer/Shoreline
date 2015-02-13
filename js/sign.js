@@ -3,7 +3,6 @@
     var BrightAuthor = signAsJSON.BrightAuthor;
     var meta = BrightAuthor.meta;
 
-    // TODO - only looking at local html sites
     // get html sites
     bsp_htmlSites = {};
 
@@ -16,6 +15,19 @@
             htmlSite.prefix = localHTMLSite.prefix;
             htmlSite.filePath = localHTMLSite.filePath;
             htmlSite.contentIsLocal = true;
+
+            bsp_htmlSites[htmlSite.name] = htmlSite;
+        });
+    }
+
+    if (typeof meta.htmlSites.remoteHTMLSite == "object") {
+        $.each(meta.htmlSites.remoteHTMLSite, function (index, remoteHTMLSite) {
+
+            var htmlSite = {};
+
+            htmlSite.name = remoteHTMLSite.name;
+            htmlSite.url = remoteHTMLSite.url.parameterValue.parameterValueItemText.value;
+            htmlSite.contentIsLocal = false;
 
             bsp_htmlSites[htmlSite.name] = htmlSite;
         });
@@ -251,29 +263,29 @@ function html5Item(html5ItemAsJSON) {
     // get the associated html site
     var htmlSite = bsp_htmlSites[this.htmlSiteName];
 
+    this.name = htmlSite.name;
     this.contentIsLocal = htmlSite.contentIsLocal;
+
     if (this.contentIsLocal) {
-        this.name = htmlSite.name;
         this.prefix = htmlSite.prefix;
         this.filePath = htmlSite.filePath;
+
+        var thisHTML5Item = this;
+
+        var fullHtml5FilePath = thisHTML5Item.prefix + thisHTML5Item.filePath;
+
+        // HACK find the blob data in the sync spec
+        $.each(currentSyncSpecAsJson.sync.files.download, function (index, downloadItem) {
+            if (downloadItem.name == fullHtml5FilePath) {
+                thisHTML5Item.blob = downloadItem.blob;
+                thisHTML5Item.blobURL = downloadItem.blobURL;
+            }
+        });
     }
     else {
         this.url = htmlSite.url;
     }
 
-    var thisHTML5Item = this;
-
-    var fullHtml5FilePath = thisHTML5Item.prefix + thisHTML5Item.filePath;
-    // TODO - hack because I created my test presentation incorrectly - I included an iFrame inside of my html. Instead, I just need html - it will become the iFrame.
-    //var fullHtml5FilePath = thisHTML5Item.prefix + "testpage.html";
-
-    // HACK find the blob data in the sync spec
-    $.each(currentSyncSpecAsJson.sync.files.download, function (index, downloadItem) {
-        if (downloadItem.name == fullHtml5FilePath) {
-            thisHTML5Item.blob = downloadItem.blob;
-            thisHTML5Item.blobURL = downloadItem.blobURL;
-        }
-    });
 
 }
 
@@ -402,7 +414,8 @@ STHTML5PlayingEventHandler = function (event, stateData) {
 
     if (eventType == "ENTRY_SIGNAL") {
         console.log(this.id + ": entry signal");
-        this.showIFrame();
+        //this.showIFrame();
+        this.showWebView();
         return "HANDLED";
     }
     else if (eventType == "EXIT_SIGNAL") {
@@ -425,6 +438,19 @@ state.prototype.showIFrame = function () {
     $('#videoZone').hide();
     $("#iframeZone").attr('src', this.html5Item.blobURL);
     $('#iframeZone').show();
+}
+
+
+state.prototype.showWebView = function () {
+    $('#imageZone').hide();
+    $('#videoZone').hide();
+    if (this.html5Item.contentIsLocal) {
+        $("#webViewZone").attr('src', this.html5Item.blobURL);
+    }
+    else {
+        $("#webViewZone").attr('src', this.html5Item.url);
+    }
+    $('#webViewZone').show();
 }
 
 

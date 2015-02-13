@@ -11,6 +11,7 @@
   "permissions": [
 	"storage",
 	"unlimitedStorage",
+	"webview",
 	"https://services.brightsignnetwork.com/",
 	"http://bsnm.s3.amazonaws.com/",
 	{"fileSystem": ["write", "retainEntries", "directory"]} 

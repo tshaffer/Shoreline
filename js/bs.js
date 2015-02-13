@@ -131,13 +131,25 @@ function createNewSign(signXML) {
 
     // TODO - HACK - generalize somehow?
     // fix json
+    if (typeof signAsJSON.BrightAuthor.meta.htmlSites.localHTMLSite == "object") {
+        if (signAsJSON.BrightAuthor.meta.htmlSites.localHTMLSite.constructor != Array) {
 
-    if (signAsJSON.BrightAuthor.meta.htmlSites.localHTMLSite.constructor != Array) {
+            if ((typeof signAsJSON.BrightAuthor.meta.htmlSites.localHTMLSite) == "object") {
+                var localHTMLSite = signAsJSON.BrightAuthor.meta.htmlSites.localHTMLSite;
+                signAsJSON.BrightAuthor.meta.htmlSites.localHTMLSite = [];
+                signAsJSON.BrightAuthor.meta.htmlSites.localHTMLSite.push(localHTMLSite);
+            }
+        }
+    }
 
-        if ((typeof signAsJSON.BrightAuthor.meta.htmlSites.localHTMLSite) == "object") {
-            var localHTMLSite = signAsJSON.BrightAuthor.meta.htmlSites.localHTMLSite;
-            signAsJSON.BrightAuthor.meta.htmlSites.localHTMLSite = [];
-            signAsJSON.BrightAuthor.meta.htmlSites.localHTMLSite.push(localHTMLSite);
+    if (typeof signAsJSON.BrightAuthor.meta.htmlSites.remoteHTMLSite == "object") {
+        if (signAsJSON.BrightAuthor.meta.htmlSites.remoteHTMLSite.constructor != Array) {
+
+            if ((typeof signAsJSON.BrightAuthor.meta.htmlSites.remoteHTMLSite) == "object") {
+                var remoteHTMLSite = signAsJSON.BrightAuthor.meta.htmlSites.remoteHTMLSite;
+                signAsJSON.BrightAuthor.meta.htmlSites.remoteHTMLSite = [];
+                signAsJSON.BrightAuthor.meta.htmlSites.remoteHTMLSite.push(remoteHTMLSite);
+            }
         }
     }
 
