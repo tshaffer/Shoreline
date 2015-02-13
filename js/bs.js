@@ -216,6 +216,8 @@ function retrieveSyncSpec() {
 
 function readCurrentSyncAsJson(nextFunction) {
 
+    debugger;
+
     var fileToRetrieve = "current-sync.json";
 
     // try to get the file from the file system
@@ -317,6 +319,7 @@ function writeCurrentSync(xml) {
 
 function writeCurrentSyncAsJson(syncSpecAsJson) {
 
+    debugger;
     var syncSpecAsStr = JSON.stringify(syncSpecAsJson);
 
     _fileSystem.root.getFile("current-sync.json", { create: true }, function (fileEntry) {
@@ -332,7 +335,8 @@ function writeCurrentSyncAsJson(syncSpecAsJson) {
 
             // https://developer.mozilla.org/en-US/docs/Web/API/Blob#Blob_constructor_example_usage 
             var aDataParts = [syncSpecAsStr];
-            var blob = new Blob(aDataParts, { type: 'text/json' });
+            //var blob = new Blob(aDataParts, { type: 'text/json' });
+            var blob = new Blob(aDataParts, { type: 'text/plain' });
             fileWriter.write(blob);
 
         }, errorHandler);
@@ -726,20 +730,79 @@ $(document).ready(function () {
         }
     }
 
+
     function launchRuntime0() {
 
+        //chooseRead();
+
+        //readCurrentSyncAsJson(launchRuntime1);
         // get current sync (only support networking currently)
         readCurrentSync(launchRuntime1);
     }
+
 
     function launchRuntime1(xmlDoc) {
 
         currentSync = xmlDoc;
         currentSyncSpecAsJson = XML2JSON(currentSync);
 
+        //chooseWrite();
+
         var filesInSyncSpec = parseSyncSpecAsJSON(currentSyncSpecAsJson);
         var filesToDownload = getFilesToDownload(filesInSyncSpec);
         getFiles(filesToDownload, launchRuntime2, currentSyncSpecAsJson);
+    }
+
+
+    // test code for reading a sync spec written to user's local drive
+    function chooseRead() {
+
+        chrome.fileSystem.chooseEntry(
+         {
+             type: 'openFile', accepts: [{
+                 extensions: ['xml']
+             }]
+         },
+         function (fileEntry) {
+             if (!fileEntry) {
+                 console.log("user did not choose a file");
+                 return;
+             }
+             fileEntry.file(function (file) {
+                 var reader = new FileReader();
+                 reader.onload = function (e) {
+                     currentSyncSpecAsJson = JSON.parse(e.target.result);
+                     debugger;
+                 };
+                 reader.readAsText(file);
+             });
+         });
+    }
+
+    // test code for writing a sync spec to user's local drive
+    function chooseWrite() {
+        
+        chrome.fileSystem.chooseEntry({
+            type: 'saveFile',
+            suggestedName: 'currentSync.xml'
+        },
+        function (writableFileEntry) {
+            writableFileEntry.createWriter(function (writer) {
+                writer.onwriteend = function (e) {
+                    console.log("chooseWrite save complete!");
+                };
+
+                // getting an error from JSON.stringify!!
+                var syncSpecAsStr = JSON.stringify(currentSyncSpecAsJson);
+                var aDataParts = [syncSpecAsStr];
+                //var blob = new Blob(aDataParts, { type: 'text/json' });
+                var blob = new Blob(aDataParts, { type: 'text/plain' });
+                writer.write(blob);
+
+        //writer.write(new Blob([document.getElementById("HTMLFile").value],
+        //            { type: 'text/plain' }));
+            }, errorHandler);
+        });
     }
 
     function launchRuntime2() {
