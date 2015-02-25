@@ -170,7 +170,7 @@ networkingStateMachine.prototype.StartSync = function () {
             "DeviceID": "L4C49T000025",
             "DeviceModel": "XD1132",
             "DeviceFamily": "lynx",
-            "DeviceFWVersion": "5.1.16",
+            "DeviceFWVersion": "5.1.33",
             "DeviceSWVersion": "7.1.6",
             "CustomAutorunVersion": "7.1.0",
             "timezone": this.stateMachine.timezone,
@@ -190,7 +190,6 @@ networkingStateMachine.prototype.StartSync = function () {
         var syncsEqual = thisStateMachine.syncSpecsEqual(currentSyncSpecAsJson, newSyncSpecAsJson);
         if (!syncsEqual) {
             // TODO - transition to a different state to download the files?
-
             var filesInSyncSpec = parseSyncSpecAsJSON(newSyncSpecAsJson);
             var filesToDownload = getFilesToDownload(filesInSyncSpec);
             getFiles(filesToDownload, thisStateMachine.newContentDownloaded, newSyncSpecAsJson);

@@ -188,7 +188,7 @@ function retrieveSyncSpec() {
             "DeviceID": "L4C49T000025",
             "DeviceModel": "XD1132",
             "DeviceFamily": "lynx",
-            "DeviceFWVersion": "5.1.16",
+            "DeviceFWVersion": "5.1.33",
             "DeviceSWVersion": "7.1.6",
             "CustomAutorunVersion": "7.1.0",
             "timezone": "PST",
@@ -444,12 +444,6 @@ function readFile(fileToRetrieve, filesToRetrieve, functionToCallAfterAllFilesGo
 
     var fileName = getFileNameFromPath(fileToRetrieve.name);
 
-    // test download
-    if (fileName == "GrandTetonWyoming.jpg") {
-        downloadFile(fileToRetrieve, filesToRetrieve, functionToCallAfterAllFilesGot, syncSpecAsJson);
-        return;
-    }
-
     // TODO explicitly download this at the moment since there is no way to check SHA1 values yet to see if the file has changed.
     if (fileName == "autoschedule.xml") {
         downloadFile(fileToRetrieve, filesToRetrieve, functionToCallAfterAllFilesGot, syncSpecAsJson);
@@ -552,6 +546,9 @@ function downloadFile(fileToDownload, filesToRetrieve, functionToCallAfterAllFil
                     };
 
                     fileWriter.write(fileToDownload.blob);
+
+                    // check to see that this works
+                    var url = fileEntry.toURL();
 
                 }, createWriterErrorHandler);
 
