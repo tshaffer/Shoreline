@@ -128,6 +128,10 @@ networkingStateMachine.prototype.STRetrievingSyncListEventHandler = function(eve
         stateData.nextState = this.stateMachine.stWaitForTimeout;
         return "TRANSITION";
     }
+    else if (event["EventType"] == "SYNCSPEC_RETRIEVAL_ERROR") {
+        stateData.nextState = this.stateMachine.stWaitForTimeout;
+        return "TRANSITION";
+    }
     else {
         console.log(this.id + ": signal type = " + event["EventType"]);
     }
@@ -180,7 +184,16 @@ networkingStateMachine.prototype.StartSync = function () {
             "storage-fs": "fat32",
             "storage-current-used": "5"
         },
-        error: function () { debugger; },
+        error: function (e)
+        {
+            console.log("error in StartSync: status = " + e.status + " " + e.statusText);
+            //debugger;
+
+            // indicate that an error occurred
+            var event = {};
+            event["EventType"] = "SYNCSPEC_RETRIEVAL_ERROR";
+            postMessage(event);
+        },
     })
     .success(function (data, textStatus, jqXHR) {
         console.log("### Received new sync list, textStatus = " + textStatus);
