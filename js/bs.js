@@ -171,9 +171,9 @@ function createNewSign(signXML) {
 
 function retrieveSyncSpec() {
 
-    debugger;
-
     console.log("retrieveSyncSpec invoked");
+
+    debugger;
 
     $.ajax({
         url: "https://services.brightsignnetwork.com/bs/CheckForContent.ashx",
@@ -202,9 +202,10 @@ function retrieveSyncSpec() {
     .success(function (data, textStatus, jqXHR) {
         console.log("get success");
         console.log(textStatus);
-        //writeCurrentSync($(data)[0]);
+        writeCurrentSync($(data)[0]);
         var syncSpecAsJson = XML2JSON($(data)[0]);
-        var filesInSyncSpec = parseSyncSpecAsJSON($(data)[0]);
+        //var filesInSyncSpec = parseSyncSpecAsJSON($(data)[0]);
+        var filesInSyncSpec = parseSyncSpecAsJSON(syncSpecAsJson);
         var filesToDownload = getFilesToDownload(filesInSyncSpec);
         console.log("clear filesToDisplay");
         filesToDisplay = [];
