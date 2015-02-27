@@ -228,12 +228,12 @@ networkingStateMachine.prototype.syncSpecsEqual = function (currentSyncAsJson, n
     $.each(currentSyncAsJson.sync.files.download, function (index, currentDownloadItem) {
         var newDownloadItem = newSyncAsJson.sync.files.download[index];
         if (!thisStateMachine.downloadItemsEqual(currentDownloadItem, newDownloadItem)) {
-            syncsTrue = false;
+            syncsEqual = false;
             return;
         }
     });
 
-    if (!syncsTrue) {
+    if (!syncsEqual) {
         return false;
     }
 
