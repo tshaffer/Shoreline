@@ -6,31 +6,34 @@
     // get html sites
     bsp_htmlSites = {};
 
-    if (typeof meta.htmlSites.localHTMLSite == "object") {
-        $.each(meta.htmlSites.localHTMLSite, function (index, localHTMLSite) {
+    if (typeof meta.htmlSites == "object") {
 
-            var htmlSite = {};
+        if (typeof meta.htmlSites.localHTMLSite == "object") {
+            $.each(meta.htmlSites.localHTMLSite, function (index, localHTMLSite) {
 
-            htmlSite.name = localHTMLSite.name;
-            htmlSite.prefix = localHTMLSite.prefix;
-            htmlSite.filePath = localHTMLSite.filePath;
-            htmlSite.contentIsLocal = true;
+                var htmlSite = {};
 
-            bsp_htmlSites[htmlSite.name] = htmlSite;
-        });
-    }
+                htmlSite.name = localHTMLSite.name;
+                htmlSite.prefix = localHTMLSite.prefix;
+                htmlSite.filePath = localHTMLSite.filePath;
+                htmlSite.contentIsLocal = true;
 
-    if (typeof meta.htmlSites.remoteHTMLSite == "object") {
-        $.each(meta.htmlSites.remoteHTMLSite, function (index, remoteHTMLSite) {
+                bsp_htmlSites[htmlSite.name] = htmlSite;
+            });
+        }
 
-            var htmlSite = {};
+        if (typeof meta.htmlSites.remoteHTMLSite == "object") {
+            $.each(meta.htmlSites.remoteHTMLSite, function (index, remoteHTMLSite) {
 
-            htmlSite.name = remoteHTMLSite.name;
-            htmlSite.url = remoteHTMLSite.url.parameterValue.parameterValueItemText.value;
-            htmlSite.contentIsLocal = false;
+                var htmlSite = {};
 
-            bsp_htmlSites[htmlSite.name] = htmlSite;
-        });
+                htmlSite.name = remoteHTMLSite.name;
+                htmlSite.url = remoteHTMLSite.url.parameterValue.parameterValueItemText.value;
+                htmlSite.contentIsLocal = false;
+
+                bsp_htmlSites[htmlSite.name] = htmlSite;
+            });
+        }
     }
 
     // capture and check attributes

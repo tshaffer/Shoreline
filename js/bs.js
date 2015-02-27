@@ -131,24 +131,26 @@ function createNewSign(signXML) {
 
     // TODO - HACK - generalize somehow?
     // fix json
-    if (typeof signAsJSON.BrightAuthor.meta.htmlSites.localHTMLSite == "object") {
-        if (signAsJSON.BrightAuthor.meta.htmlSites.localHTMLSite.constructor != Array) {
+    if (typeof signAsJSON.BrightAuthor.meta.htmlSites == "object") {
+        if (typeof signAsJSON.BrightAuthor.meta.htmlSites.localHTMLSite == "object") {
+            if (signAsJSON.BrightAuthor.meta.htmlSites.localHTMLSite.constructor != Array) {
 
-            if ((typeof signAsJSON.BrightAuthor.meta.htmlSites.localHTMLSite) == "object") {
-                var localHTMLSite = signAsJSON.BrightAuthor.meta.htmlSites.localHTMLSite;
-                signAsJSON.BrightAuthor.meta.htmlSites.localHTMLSite = [];
-                signAsJSON.BrightAuthor.meta.htmlSites.localHTMLSite.push(localHTMLSite);
+                if ((typeof signAsJSON.BrightAuthor.meta.htmlSites.localHTMLSite) == "object") {
+                    var localHTMLSite = signAsJSON.BrightAuthor.meta.htmlSites.localHTMLSite;
+                    signAsJSON.BrightAuthor.meta.htmlSites.localHTMLSite = [];
+                    signAsJSON.BrightAuthor.meta.htmlSites.localHTMLSite.push(localHTMLSite);
+                }
             }
         }
-    }
 
-    if (typeof signAsJSON.BrightAuthor.meta.htmlSites.remoteHTMLSite == "object") {
-        if (signAsJSON.BrightAuthor.meta.htmlSites.remoteHTMLSite.constructor != Array) {
+        if (typeof signAsJSON.BrightAuthor.meta.htmlSites.remoteHTMLSite == "object") {
+            if (signAsJSON.BrightAuthor.meta.htmlSites.remoteHTMLSite.constructor != Array) {
 
-            if ((typeof signAsJSON.BrightAuthor.meta.htmlSites.remoteHTMLSite) == "object") {
-                var remoteHTMLSite = signAsJSON.BrightAuthor.meta.htmlSites.remoteHTMLSite;
-                signAsJSON.BrightAuthor.meta.htmlSites.remoteHTMLSite = [];
-                signAsJSON.BrightAuthor.meta.htmlSites.remoteHTMLSite.push(remoteHTMLSite);
+                if ((typeof signAsJSON.BrightAuthor.meta.htmlSites.remoteHTMLSite) == "object") {
+                    var remoteHTMLSite = signAsJSON.BrightAuthor.meta.htmlSites.remoteHTMLSite;
+                    signAsJSON.BrightAuthor.meta.htmlSites.remoteHTMLSite = [];
+                    signAsJSON.BrightAuthor.meta.htmlSites.remoteHTMLSite.push(remoteHTMLSite);
+                }
             }
         }
     }
@@ -701,13 +703,13 @@ $(document).ready(function () {
 
     console.log("entering bs.js");
 
-    var startAppButton = document.querySelector('#startApp');
-    $('#startApp')[0].innerHTML = "Press to begin";
+    //var startAppButton = document.querySelector('#startApp');
+    //$('#startApp')[0].innerHTML = "Press to begin";
 
-    startAppButton.addEventListener('click', function (e) {
-        console.log("startAppButton pressed, invoke init0");
-        init0();
-    });
+    //startAppButton.addEventListener('click', function (e) {
+    //    console.log("startAppButton pressed, invoke init0");
+    //    init0();
+    //});
 
     init0();
 
