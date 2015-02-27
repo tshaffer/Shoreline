@@ -224,10 +224,18 @@ networkingStateMachine.prototype.syncSpecsEqual = function (currentSyncAsJson, n
 
     // assume that if the sync specs are the same, the order of the files is the same
     var thisStateMachine = this;
+    var syncsEqual = true;
     $.each(currentSyncAsJson.sync.files.download, function (index, currentDownloadItem) {
         var newDownloadItem = newSyncAsJson.sync.files.download[index];
-        if (!thisStateMachine.downloadItemsEqual(currentDownloadItem, newDownloadItem)) return false;
+        if (!thisStateMachine.downloadItemsEqual(currentDownloadItem, newDownloadItem)) {
+            syncsTrue = false;
+            return;
+        }
     });
+
+    if (!syncsTrue) {
+        return false;
+    }
 
     // check meta sections (server, client)
     if (!this.metaSectionsEqual(currentSyncAsJson.sync.meta.server, newSyncAsJson.sync.meta.server)) return false;
